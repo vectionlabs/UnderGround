@@ -1,0 +1,173 @@
+@import "tailwindcss";
+
+/* Theme CSS Variables */
+:root, html {
+  /* Default: Sunset theme */
+  --primary: #ec4899;
+  --primary-hover: #db2777;
+  --secondary: #f97316;
+  --accent: #eab308;
+  --gradient-from: #ec4899;
+  --gradient-to: #f97316;
+  
+  /* Dark mode colors (default) */
+  --bg-primary: #020617;
+  --bg-secondary: #0f172a;
+  --bg-tertiary: #1e293b;
+  --bg-card: rgba(30, 41, 59, 0.5);
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-color: rgba(255, 255, 255, 0.1);
+  
+  /* Font size multiplier */
+  --font-scale: 1;
+}
+
+/* Theme: Ocean */
+html[data-theme="ocean"], [data-theme="ocean"] {
+  --primary: #06b6d4;
+  --primary-hover: #0891b2;
+  --secondary: #3b82f6;
+  --accent: #8b5cf6;
+  --gradient-from: #06b6d4;
+  --gradient-to: #3b82f6;
+}
+
+/* Theme: Mint */
+html[data-theme="mint"], [data-theme="mint"] {
+  --primary: #10b981;
+  --primary-hover: #059669;
+  --secondary: #14b8a6;
+  --accent: #06b6d4;
+  --gradient-from: #10b981;
+  --gradient-to: #14b8a6;
+}
+
+/* Theme: Purple */
+html[data-theme="purple"], [data-theme="purple"] {
+  --primary: #a855f7;
+  --primary-hover: #9333ea;
+  --secondary: #ec4899;
+  --accent: #6366f1;
+  --gradient-from: #a855f7;
+  --gradient-to: #ec4899;
+}
+
+/* Theme: Dark (grayscale) */
+html[data-theme="dark"], [data-theme="dark"] {
+  --primary: #64748b;
+  --primary-hover: #475569;
+  --secondary: #475569;
+  --accent: #334155;
+  --gradient-from: #475569;
+  --gradient-to: #334155;
+}
+
+/* Light Mode */
+html[data-mode="light"], [data-mode="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-tertiary: #e2e8f0;
+  --bg-card: rgba(241, 245, 249, 0.8);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Font Size Scales */
+html[data-font-size="small"] { --font-scale: 0.875; }
+html[data-font-size="normal"] { --font-scale: 1; }
+html[data-font-size="large"] { --font-scale: 1.125; }
+html[data-font-size="xlarge"] { --font-scale: 1.25; }
+
+/* Apply theme variables to body */
+body {
+  background: linear-gradient(to bottom right, var(--bg-primary), var(--bg-secondary), var(--bg-primary)) !important;
+  color: var(--text-primary) !important;
+  font-size: calc(1rem * var(--font-scale)) !important;
+  transition: all 0.3s ease;
+}
+
+/* Light mode - override ALL dark backgrounds */
+html[data-mode="light"] * {
+  --tw-bg-opacity: 1;
+}
+
+html[data-mode="light"] [class*="bg-slate-9"],
+html[data-mode="light"] [class*="bg-slate-8"],
+html[data-mode="light"] [class*="from-slate-9"],
+html[data-mode="light"] [class*="via-slate-9"],
+html[data-mode="light"] [class*="to-slate-9"] {
+  background-color: var(--bg-secondary) !important;
+  background-image: none !important;
+}
+
+html[data-mode="light"] [class*="text-white"] {
+  color: var(--text-primary) !important;
+}
+
+html[data-mode="light"] [class*="text-slate-3"],
+html[data-mode="light"] [class*="text-slate-4"] {
+  color: var(--text-secondary) !important;
+}
+
+html[data-mode="light"] [class*="border-white"] {
+  border-color: var(--border-color) !important;
+}
+
+html[data-mode="light"] [class*="bg-white/"],
+html[data-mode="light"] [class*="bg-black/"] {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Override pink/primary colors based on theme - apply to ALL themes */
+[class*="bg-pink-5"]:not([class*="/"]) {
+  background-color: var(--primary) !important;
+}
+
+[class*="hover:bg-pink-6"]:hover {
+  background-color: var(--primary-hover) !important;
+}
+
+[class*="text-pink-4"],
+[class*="text-pink-5"] {
+  color: var(--primary) !important;
+}
+
+[class*="bg-pink-500/"],
+[class*="from-pink-500/"] {
+  background-color: color-mix(in srgb, var(--primary) 20%, transparent) !important;
+}
+
+[class*="ring-pink"] {
+  --tw-ring-color: var(--primary) !important;
+}
+
+/* Gradient text with theme colors */
+.animate-gradient-text {
+  background: linear-gradient(to right, var(--gradient-from), var(--secondary), var(--accent)) !important;
+  background-size: 200% auto !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+/* Gradient buttons with theme */
+[class*="from-pink-500"][class*="to-orange"] {
+  background: linear-gradient(to right, var(--gradient-from), var(--gradient-to)) !important;
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-text {
+  animation: gradient-shift 3s ease infinite;
+}

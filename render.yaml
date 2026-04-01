@@ -1,0 +1,14 @@
+services:
+  # Backend + Frontend (single service)
+  - type: web
+    name: underground
+    runtime: node
+    buildCommand: npm install && npm run build && cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+    disk:
+      name: underground-data
+      mountPath: /data
+      sizeGB: 1

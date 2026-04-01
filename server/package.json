@@ -1,0 +1,17 @@
+{
+  "name": "underground-server",
+  "version": "1.0.0",
+  "description": "Backend API for UnderGround social platform",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "better-sqlite3": "^11.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "socket.io": "^4.8.3"
+  }
+}
