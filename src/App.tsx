@@ -1025,8 +1025,23 @@ export default function App() {
             >
               <div className="p-6">
                 <h2 className="text-2xl font-bold mb-4">Amici</h2>
-                <p className="text-slate-400">Funzionalità amici in arrivo!</p>
-                <p className="mt-2 text-sm text-slate-500">Potrai aggiungere amici dai post e reels.</p>
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-white/10 bg-slate-800/50 p-4">
+                    <p className="text-slate-400">Amici attuali: {friendList.length}</p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      {friendList.length > 0 
+                        ? `Hai ${friendList.length} amicizie`
+                        : 'Nessun amico ancora'
+                      }
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-pink-500/20 bg-pink-500/5 p-4">
+                    <p className="text-pink-400 font-semibold">💡 Suggerimento</p>
+                    <p className="mt-2 text-sm text-slate-300">
+                      Aggiungi amici dai post e reels con il pulsante +
+                    </p>
+                  </div>
+                </div>
               </div>
             </motion.div>
           )}
