@@ -167,6 +167,28 @@ export const friends = {
     apiRequest<{ success: boolean }>(`/friends/${friendId}`, { method: 'DELETE' }),
 };
 
+// Admin
+export const admin = {
+  users: () =>
+    apiRequest<AdminUser[]>('/admin/users'),
+  ban: (userId: string, reason?: string) =>
+    apiRequest<{ success: boolean }>(`/admin/ban/${userId}`, { method: 'POST', body: { reason } }),
+  unban: (userId: string) =>
+    apiRequest<{ success: boolean }>(`/admin/unban/${userId}`, { method: 'POST' }),
+  mute: (userId: string, reason?: string) =>
+    apiRequest<{ success: boolean }>(`/admin/mute/${userId}`, { method: 'POST', body: { reason } }),
+  unmute: (userId: string) =>
+    apiRequest<{ success: boolean }>(`/admin/unmute/${userId}`, { method: 'POST' }),
+  deletePost: (postId: string) =>
+    apiRequest<{ success: boolean }>(`/admin/posts/${postId}`, { method: 'DELETE' }),
+  deleteReel: (reelId: string) =>
+    apiRequest<{ success: boolean }>(`/admin/reels/${reelId}`, { method: 'DELETE' }),
+  deleteChannel: (channelId: string) =>
+    apiRequest<{ success: boolean }>(`/admin/channels/${channelId}`, { method: 'DELETE' }),
+  deleteComment: (commentId: string) =>
+    apiRequest<{ success: boolean }>(`/admin/comments/${commentId}`, { method: 'DELETE' }),
+};
+
 // Media upload (Supabase Storage)
 export const media = {
   upload: (data: string, type: string, fileName?: string) =>
@@ -214,6 +236,25 @@ export type User = {
   age: number;
   privateProfile: boolean;
   safeComments: boolean;
+  role: 'admin' | 'user';
+  banned: boolean;
+  banReason: string | null;
+  muted: boolean;
+  muteReason: string | null;
+  createdAt: string;
+};
+
+export type AdminUser = {
+  id: string;
+  username: string;
+  displayName: string;
+  avatar: string | null;
+  role: 'admin' | 'user';
+  banned: boolean;
+  banReason: string | null;
+  muted: boolean;
+  muteReason: string | null;
+  status: string;
   createdAt: string;
 };
 

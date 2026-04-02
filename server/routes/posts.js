@@ -61,6 +61,12 @@ router.post('/', async (req, res) => {
     return res.status(401).json({ error: 'Non autenticato' });
   }
 
+  // Check muted
+  const caller = await db.get('SELECT muted, mute_reason FROM users WHERE id = $1', [userId]);
+  if (caller?.muted) {
+    return res.status(403).json({ error: 'Sei mutato: ' + (caller.muteReason || 'Comportamento inappropriato') });
+  }
+
   const { text, channelId, media, publishAs } = req.body;
   if (!text?.trim()) {
     return res.status(400).json({ error: 'Testo richiesto' });

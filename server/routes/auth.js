@@ -68,6 +68,11 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Password non corretta' });
     }
 
+    // Check if banned
+    if (user.banned) {
+      return res.status(403).json({ success: false, banned: true, reason: user.banReason || 'Violazione regole' });
+    }
+
     // Update status to online
     await db.run('UPDATE users SET status = $1 WHERE id = $2', ['online', user.id]);
 

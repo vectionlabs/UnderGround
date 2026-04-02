@@ -32,6 +32,12 @@ router.post('/', async (req, res) => {
     return res.status(401).json({ error: 'Non autenticato' });
   }
 
+  // Check muted
+  const caller = await db.get('SELECT muted, mute_reason FROM users WHERE id = $1', [userId]);
+  if (caller?.muted) {
+    return res.status(403).json({ error: 'Sei mutato: ' + (caller.muteReason || 'Comportamento inappropriato') });
+  }
+
   const { title, imageBase64, videoBase64, mediaType, duration, isShort } = req.body;
   if (!title?.trim() || (!imageBase64 && !videoBase64)) {
     return res.status(400).json({ error: 'Titolo e media richiesti' });

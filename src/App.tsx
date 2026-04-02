@@ -43,8 +43,10 @@ import Stories from "./components/Stories";
 import SearchPanel from "./components/SearchPanel";
 import NotificationsPanel from "./components/NotificationsPanel";
 import SettingsPanel, { type AppSettings } from "./components/SettingsPanel";
+import AdminPanel from "./components/AdminPanel";
+import BannedScreen from "./components/BannedScreen";
 
-type Tab = "feed" | "reels" | "canali" | "gruppi" | "messaggi" | "crea" | "profilo";
+type Tab = "feed" | "reels" | "canali" | "gruppi" | "messaggi" | "crea" | "profilo" | "admin";
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: 'sunset',
@@ -334,6 +336,12 @@ export default function App() {
   };
 
   const handleCreatePost = async (text: string, channelId: string, mediaFile: any, publishAs: string | null) => {
+    // Check if muted
+    if (currentUser?.muted) {
+      alert('Sei mutato: ' + (currentUser.muteReason || 'Comportamento inappropriato'));
+      return;
+    }
+
     let uploadedMedia = mediaFile;
     
     // Upload media to Supabase Storage if present
@@ -438,6 +446,12 @@ export default function App() {
   };
 
   const handleCreateReel = async (title: string, mediaFile: any) => {
+    // Check if muted
+    if (currentUser?.muted) {
+      alert('Sei mutato: ' + (currentUser.muteReason || 'Comportamento inappropriato'));
+      return;
+    }
+
     // Upload media to Supabase Storage first
     let imageUrl: string | undefined;
     let videoUrl: string | undefined;
@@ -560,6 +574,7 @@ export default function App() {
     { id: "messaggi", label: "Messaggi", icon: <MessageIcon size={20} /> },
     { id: "crea", label: "Crea", icon: <PlusIcon size={20} /> },
     { id: "profilo", label: "Profilo", icon: <UserIcon size={20} /> },
+    ...(currentUser?.role === 'admin' ? [{ id: "admin", label: "Admin", icon: <AdminIcon size={20} /> }] : []),
   ];
 
   const joinedChannels = channelList.filter((c) => c.joined);
@@ -695,6 +710,10 @@ export default function App() {
   const buttonBgColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
 
   // Main app
+  if (currentUser?.banned) {
+    return <BannedScreen reason={currentUser.banReason || undefined} />;
+  }
+
   return (
     <div style={appStyles}>
       {/* Header */}
@@ -913,6 +932,17 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
             >
               <Profile user={currentUser} onUpdate={handleUpdateProfile} onLogout={handleLogout} />
+            </motion.div>
+          )}
+
+          {activeTab === "admin" && currentUser?.role === 'admin' && (
+            <motion.div
+              key="admin"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <AdminPanel />
             </motion.div>
           )}
         </AnimatePresence>

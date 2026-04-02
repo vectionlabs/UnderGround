@@ -20,6 +20,11 @@ CREATE TABLE IF NOT EXISTS users (
   age INTEGER NOT NULL,
   private_profile BOOLEAN DEFAULT true,
   safe_comments BOOLEAN DEFAULT true,
+  role TEXT DEFAULT 'user',
+  banned BOOLEAN DEFAULT false,
+  ban_reason TEXT DEFAULT NULL,
+  muted BOOLEAN DEFAULT false,
+  mute_reason TEXT DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
