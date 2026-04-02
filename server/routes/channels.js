@@ -123,4 +123,42 @@ router.post('/:id/leave', (req, res) => {
   res.json({ joined: false, memberCount });
 });
 
+// Fix corrupted channels (base64 in name)
+router.post('/fix-corrupted', (req, res) => {
+  try {
+    // Find channels where name contains base64
+    const channels = db.prepare(`
+      SELECT id, name, description, icon 
+      FROM channels 
+      WHERE LENGTH(name) > 50 
+         OR name LIKE '%base64%'
+         OR name LIKE 'data:%'
+    `).all();
+
+    let fixed = 0;
+    for (const channel of channels) {
+      if (channel.name && (
+        channel.name.length > 50 || 
+        channel.name.includes('base64') ||
+        channel.name.startsWith('data:')
+      )) {
+        // Extract a reasonable name from the corrupted one
+        let newName = channel.name.substring(0, 30).replace(/[^a-zA-Z0-9\s]/g, '').trim();
+        if (!newName || newName.length < 2) {
+          newName = `Canale_${channel.id.substring(0, 6)}`;
+        }
+        
+        db.prepare('UPDATE channels SET name = ? WHERE id = ?')
+          .run(newName, channel.id);
+        fixed++;
+      }
+    }
+
+    res.json({ success: true, fixed, message: `Corretti ${fixed} canali` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Errore durante la correzione' });
+  }
+});
+
 module.exports = router;
