@@ -2,8 +2,19 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const dns = require('dns');
 
-// Force IPv4 DNS resolution (Render free tier doesn't support IPv6 outbound)
-dns.setDefaultResultOrder('ipv4first');
+// Force ALL DNS lookups to IPv4 (Render free tier can't reach IPv6)
+const _origLookup = dns.lookup;
+dns.lookup = function (hostname, options, callback) {
+  if (typeof options === 'function') {
+    callback = options;
+    options = { family: 4 };
+  } else if (typeof options === 'number') {
+    options = { family: 4 };
+  } else {
+    options = Object.assign({}, options, { family: 4 });
+  }
+  return _origLookup.call(dns, hostname, options, callback);
+};
 
 // Supabase PostgreSQL connection
 const DATABASE_URL = process.env.DATABASE_URL;
