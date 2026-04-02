@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImageIcon, PlayIcon, CloseIcon, PlusIcon } from './Icons';
+import { compressImage, compressVideoThumbnail, blobToBase64, formatBytes } from '../utils/compress';
 
 type MediaType = 'image' | 'video' | 'document';
 
@@ -137,40 +138,58 @@ export default function MediaUploader({
     const mediaType = getMediaType(file.type);
 
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const dataBase64 = reader.result as string;
-        
-        let thumbnailBase64: string | undefined;
-        let duration: number | undefined;
+      let dataBase64: string;
+      let thumbnailBase64: string | undefined;
+      let duration: number | undefined;
+      let finalSize: number;
 
-        if (mediaType === 'video') {
-          thumbnailBase64 = await generateVideoThumbnail(file);
-          duration = await getVideoDuration(file);
-        }
+      if (mediaType === 'image') {
+        // MEGA COMPRESSION for images
+        const originalSize = file.size;
+        const { blob } = await compressImage(file, 1200, 0.6);
+        dataBase64 = await blobToBase64(blob);
+        finalSize = blob.size;
+        console.log(`🗜️ Image: ${formatBytes(originalSize)} → ${formatBytes(finalSize)} (${Math.round((1 - finalSize / originalSize) * 100)}% smaller)`);
+      } else if (mediaType === 'video') {
+        // Video: read as base64, compress thumbnail
+        const { thumbnailBlob, duration: dur } = await compressVideoThumbnail(file);
+        thumbnailBase64 = await blobToBase64(thumbnailBlob);
+        duration = dur;
+        // Read video file as base64
+        dataBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        finalSize = file.size;
+        console.log(`🎬 Video: ${formatBytes(file.size)}, thumbnail compressed, duration: ${duration}s`);
+      } else {
+        // Documents: read as-is
+        dataBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        finalSize = file.size;
+      }
 
-        const media: MediaFile = {
-          type: mediaType,
-          dataBase64,
-          thumbnailBase64,
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType: file.type,
-          duration,
-        };
-
-        setPreview(media);
-        onMediaSelect(media);
-        setUploading(false);
+      const media: MediaFile = {
+        type: mediaType,
+        dataBase64,
+        thumbnailBase64,
+        fileName: file.name,
+        fileSize: finalSize,
+        mimeType: file.type,
+        duration,
       };
 
-      reader.onerror = () => {
-        setError('Errore lettura file');
-        setUploading(false);
-      };
-
-      reader.readAsDataURL(file);
+      setPreview(media);
+      onMediaSelect(media);
+      setUploading(false);
     } catch (err) {
+      console.error('Compression error:', err);
       setError('Errore elaborazione file');
       setUploading(false);
     }

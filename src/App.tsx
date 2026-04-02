@@ -7,6 +7,7 @@ import {
   groups,
   messages,
   reels,
+  media,
   friends,
   type User,
   type Post,
@@ -332,8 +333,19 @@ export default function App() {
     }
   };
 
-  const handleCreatePost = async (text: string, channelId: string, media: any, publishAs: string | null) => {
-    await posts.create(text, channelId, media, publishAs);
+  const handleCreatePost = async (text: string, channelId: string, mediaFile: any, publishAs: string | null) => {
+    let uploadedMedia = mediaFile;
+    
+    // Upload media to Supabase Storage if present
+    if (mediaFile && mediaFile.dataBase64) {
+      const result = await media.upload(mediaFile.dataBase64, mediaFile.type, mediaFile.fileName);
+      uploadedMedia = {
+        ...mediaFile,
+        dataBase64: result.url, // Replace base64 with Storage URL
+      };
+    }
+    
+    await posts.create(text, channelId, uploadedMedia, publishAs);
     const newPosts = await posts.list();
     setPostList(newPosts);
     setActiveTab("feed");
@@ -425,8 +437,31 @@ export default function App() {
     }
   };
 
-  const handleCreateReel = async (title: string, media: any) => {
-    await reels.create(title, media);
+  const handleCreateReel = async (title: string, mediaFile: any) => {
+    // Upload media to Supabase Storage first
+    let imageUrl: string | undefined;
+    let videoUrl: string | undefined;
+
+    if (mediaFile.type === 'video' && mediaFile.dataBase64) {
+      const videoResult = await media.upload(mediaFile.dataBase64, 'video');
+      videoUrl = videoResult.url;
+      // Upload thumbnail as image
+      if (mediaFile.thumbnailBase64) {
+        const thumbResult = await media.upload(mediaFile.thumbnailBase64, 'image');
+        imageUrl = thumbResult.url;
+      }
+    } else if (mediaFile.type === 'image' && mediaFile.dataBase64) {
+      const imgResult = await media.upload(mediaFile.dataBase64, 'image');
+      imageUrl = imgResult.url;
+    }
+
+    await reels.create(title, {
+      imageUrl,
+      videoUrl,
+      mediaType: mediaFile.type,
+      duration: mediaFile.duration,
+      isShort: mediaFile.duration ? mediaFile.duration <= 60 : true,
+    });
     const newReels = await reels.list();
     setReelList(newReels);
   };

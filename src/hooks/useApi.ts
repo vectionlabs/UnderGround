@@ -167,19 +167,28 @@ export const friends = {
     apiRequest<{ success: boolean }>(`/friends/${friendId}`, { method: 'DELETE' }),
 };
 
+// Media upload (Supabase Storage)
+export const media = {
+  upload: (data: string, type: string, fileName?: string) =>
+    apiRequest<{ url: string; path?: string; size: number; fallback?: boolean }>('/media/upload', {
+      method: 'POST',
+      body: { data, type, fileName },
+    }),
+};
+
 // Reels
 export const reels = {
   list: () =>
     apiRequest<Reel[]>('/reels'),
   
-  create: (title: string, media: MediaFile) =>
+  create: (title: string, mediaData: { imageUrl?: string; videoUrl?: string; mediaType: string; duration?: number; isShort?: boolean }) =>
     apiRequest<Reel>('/reels', { method: 'POST', body: { 
       title, 
-      imageBase64: media.type === 'image' ? media.dataBase64 : media.thumbnailBase64,
-      videoBase64: media.type === 'video' ? media.dataBase64 : null,
-      mediaType: media.type,
-      duration: media.duration,
-      isShort: media.duration ? media.duration <= 60 : true
+      imageBase64: mediaData.imageUrl || null,
+      videoBase64: mediaData.videoUrl || null,
+      mediaType: mediaData.mediaType,
+      duration: mediaData.duration,
+      isShort: mediaData.isShort ?? true,
     } }),
   
   like: (reelId: string) =>
