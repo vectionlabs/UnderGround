@@ -45,7 +45,7 @@ import NotificationsPanel from "./components/NotificationsPanel";
 import SettingsPanel, { type AppSettings } from "./components/SettingsPanel";
 import AdminPanel from "./components/AdminPanel";
 import BannedScreen from "./components/BannedScreen";
-// import Friends from "./components/Friends";
+import Friends from "./components/Friends";
 
 type Tab = "feed" | "reels" | "canali" | "gruppi" | "messaggi" | "amici" | "crea" | "profilo" | "admin";
 
@@ -648,7 +648,7 @@ export default function App() {
     { id: "canali", label: "Canali", icon: <HashIcon size={20} /> },
     { id: "gruppi", label: "Gruppi", icon: <GroupIcon size={20} /> },
     { id: "messaggi", label: "Messaggi", icon: <MessageIcon size={20} /> },
-    // { id: "amici", label: "Amici", icon: <UsersIcon size={20} /> },
+    { id: "amici", label: "Amici", icon: <UsersIcon size={20} /> },
     { id: "crea", label: "Crea", icon: <PlusIcon size={20} /> },
     { id: "profilo", label: "Profilo", icon: <UserIcon size={20} /> },
     ...(currentUser?.role === 'admin' ? [{ id: "admin", label: "Admin", icon: <AdminIcon size={20} /> }] : []),
@@ -1016,20 +1016,30 @@ export default function App() {
             </motion.div>
           )}
 
-          {/* {activeTab === "amici" && (
+          {activeTab === "amici" && (
             <motion.div
               key="amici"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
-              <Friends
-                currentUserId={currentUser?.id || ""}
-                friends={friendList}
-                onRefreshFriends={() => friends.list().then(setFriendList).catch(console.error)}
-              />
+              <div className="rounded-xl border border-white/10 bg-slate-800/50 p-6">
+                <h2 className="mb-4 text-xl font-bold">Amici</h2>
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-white/10 bg-slate-700/50 p-4">
+                    <p className="text-slate-400">Caricamento amici...</p>
+                    <p className="mt-2 text-sm text-slate-500">Questa funzionalità è in sviluppo.</p>
+                  </div>
+                  <div className="rounded-lg border border-pink-500/20 bg-pink-500/5 p-4">
+                    <p className="text-pink-400 font-semibold">🔧 In sviluppo</p>
+                    <p className="mt-2 text-sm text-slate-300">
+                      Presto potrai cercare utenti e gestire le amicizie!
+                    </p>
+                  </div>
+                </div>
+              </div>
             </motion.div>
-          )} */}
+          )}
 
           {activeTab === "crea" && (
             <motion.div
