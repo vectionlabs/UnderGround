@@ -147,16 +147,6 @@ router.patch('/profile', (req, res) => {
   res.json(user);
 });
 
-// Get user by ID
-router.get('/users/:id', (req, res) => {
-  const user = db.prepare('SELECT id, username, displayName, avatar, banner, bio, status, mood, theme, badges, createdAt FROM users WHERE id = ?').get(req.params.id);
-  if (!user) {
-    return res.status(404).json({ error: 'Utente non trovato' });
-  }
-  user.badges = JSON.parse(user.badges || '[]');
-  res.json(user);
-});
-
 // Debug: check what data looks corrupted
 router.get('/debug-data', (req, res) => {
   try {
@@ -185,6 +175,16 @@ router.get('/debug-data', (req, res) => {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// Get user by ID
+router.get('/users/:id', (req, res) => {
+  const user = db.prepare('SELECT id, username, displayName, avatar, banner, bio, status, mood, theme, badges, createdAt FROM users WHERE id = ?').get(req.params.id);
+  if (!user) {
+    return res.status(404).json({ error: 'Utente non trovato' });
+  }
+  user.badges = JSON.parse(user.badges || '[]');
+  res.json(user);
 });
 
 // Fix corrupted users (base64 in displayName)
