@@ -106,6 +106,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [lastDataLoad, setLastDataLoad] = useState<number>(0);
+  const [activeTabData, setActiveTabData] = useState<Record<string, boolean>>({});
 
   // Socket.IO for real-time chat
   const socket = useSocket(currentUser);
@@ -191,15 +193,33 @@ export default function App() {
       return;
     }
     
+    // Skip if loaded recently (within 30 seconds)
+    const now = Date.now();
+    if (lastDataLoad && now - lastDataLoad < 30000 && retryCount === 0) {
+      console.log('🔄 Data loaded recently, skipping...');
+      return;
+    }
+    
     setIsLoading(true);
     setIsLoadingData(true);
     setDataError(null);
     
     try {
-      console.log('🔄 Loading initial data...');
-      const [postsData, channelsData, groupsData, conversationsData, reelsData, friendsData, unreadData] = await Promise.all([
+      console.log('🔄 Loading essential data first...');
+      // Load essential data first (posts, channels)
+      const [postsData, channelsData] = await Promise.all([
         posts.list().catch(e => { console.warn('Posts load failed:', e); return []; }),
         channels.list().catch(e => { console.warn('Channels load failed:', e); return []; }),
+      ]);
+      
+      setPostList(postsData);
+      setChannelList(channelsData);
+      setIsLoading(false); // Show UI immediately with essential data
+      console.log('✅ Essential data loaded, showing UI');
+      
+      // Load secondary data in background
+      console.log('🔄 Loading secondary data in background...');
+      const [groupsData, conversationsData, reelsData, friendsData, unreadData] = await Promise.all([
         groups.list().catch(e => { console.warn('Groups load failed:', e); return []; }),
         messages.conversations().catch(e => { console.warn('Conversations load failed:', e); return []; }),
         reels.list().catch(e => { console.warn('Reels load failed:', e); return []; }),
@@ -207,16 +227,14 @@ export default function App() {
         messages.unreadCount().catch(e => { console.warn('Unread count failed:', e); return 0; }),
       ]);
       
-      setPostList(postsData);
-      setChannelList(channelsData);
       setGroupList(groupsData);
       setConversationList(conversationsData);
       setReelList(reelsData);
       setFriendList(friendsData);
       setUnreadMessages(unreadData);
-      setIsLoading(false);
       setIsLoadingData(false);
-      console.log('✅ Initial data loaded successfully');
+      setLastDataLoad(Date.now());
+      console.log('✅ All data loaded successfully');
     } catch (error) {
       console.error('❌ Error loading data:', error);
       setIsLoading(false);
@@ -230,16 +248,34 @@ export default function App() {
         setDataError('Impossibile caricare i dati. Riprova più tardi.');
       }
     }
-  }, [currentUser, isLoadingData]);
+  }, [currentUser, isLoadingData, lastDataLoad]);
 
   // Load data when user changes
   useEffect(() => {
     if (currentUser) {
       loadAllData();
-      const interval = setInterval(loadAllData, 60000); // Reduced from 30s to 60s
+      const interval = setInterval(loadAllData, 120000); // 2 minutes instead of 60s
       return () => clearInterval(interval);
     }
   }, [currentUser, loadAllData]);
+
+  // Lazy load tab data when tab becomes active
+  useEffect(() => {
+    if (!activeTabData[activeTab]) {
+      console.log(`🔄 Loading data for tab: ${activeTab}`);
+      setActiveTabData(prev => ({ ...prev, [activeTab]: true }));
+      
+      // Load specific data for this tab
+      if (activeTab === 'messaggi' && !conversationList.length) {
+        messages.conversations().then(setConversationList).catch(console.error);
+        messages.unreadCount().then(setUnreadMessages).catch(console.error);
+      } else if (activeTab === 'reels' && !reelList.length) {
+        reels.list().then(setReelList).catch(console.error);
+      } else if (activeTab === 'gruppi' && !groupList.length) {
+        groups.list().then(setGroupList).catch(console.error);
+      }
+    }
+  }, [activeTab]);
 
   // Auth handlers
   const handleLogin = async (e: FormEvent) => {
