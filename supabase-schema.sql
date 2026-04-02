@@ -66,6 +66,25 @@ CREATE TABLE IF NOT EXISTS group_members (
   PRIMARY KEY (group_id, user_id)
 );
 
+-- Friends
+CREATE TABLE IF NOT EXISTS friends (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  friend_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, friend_id)
+);
+
+-- Friend requests
+CREATE TABLE IF NOT EXISTS friend_requests (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  receiver_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(requester_id, receiver_id)
+);
+
 -- Posts
 CREATE TABLE IF NOT EXISTS posts (
   id TEXT PRIMARY KEY,

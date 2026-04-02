@@ -45,8 +45,9 @@ import NotificationsPanel from "./components/NotificationsPanel";
 import SettingsPanel, { type AppSettings } from "./components/SettingsPanel";
 import AdminPanel from "./components/AdminPanel";
 import BannedScreen from "./components/BannedScreen";
+import Friends from "./components/Friends";
 
-type Tab = "feed" | "reels" | "canali" | "gruppi" | "messaggi" | "crea" | "profilo" | "admin";
+type Tab = "feed" | "reels" | "canali" | "gruppi" | "messaggi" | "amici" | "crea" | "profilo" | "admin";
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: 'sunset',
@@ -647,6 +648,7 @@ export default function App() {
     { id: "canali", label: "Canali", icon: <HashIcon size={20} /> },
     { id: "gruppi", label: "Gruppi", icon: <GroupIcon size={20} /> },
     { id: "messaggi", label: "Messaggi", icon: <MessageIcon size={20} /> },
+    { id: "amici", label: "Amici", icon: <UsersIcon size={20} /> },
     { id: "crea", label: "Crea", icon: <PlusIcon size={20} /> },
     { id: "profilo", label: "Profilo", icon: <UserIcon size={20} /> },
     ...(currentUser?.role === 'admin' ? [{ id: "admin", label: "Admin", icon: <AdminIcon size={20} /> }] : []),
@@ -1010,6 +1012,21 @@ export default function App() {
                 onStartTyping={(recipientId) => socket.startTyping(recipientId)}
                 onStopTyping={(recipientId) => socket.stopTyping(recipientId)}
                 onNewMessage={socket.onDMReceive}
+              />
+            </motion.div>
+          )}
+
+          {activeTab === "amici" && (
+            <motion.div
+              key="amici"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <Friends
+                currentUserId={currentUser?.id || ""}
+                friends={friendList}
+                onRefreshFriends={() => friends.list().then(setFriendList).catch(console.error)}
               />
             </motion.div>
           )}

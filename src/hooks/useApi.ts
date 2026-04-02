@@ -197,6 +197,9 @@ export const friends = {
   
   remove: (friendId: string) =>
     apiRequest<{ success: boolean }>(`/friends/${friendId}`, { method: 'DELETE' }),
+
+  searchUsers: (query: string) =>
+    apiRequest<User[]>(`/friends/search?q=${encodeURIComponent(query)}`),
 };
 
 // Admin
