@@ -157,4 +157,40 @@ router.get('/users/:id', (req, res) => {
   res.json(user);
 });
 
+// Fix corrupted users (base64 in displayName)
+router.post('/fix-corrupted-users', (req, res) => {
+  try {
+    // Find users where displayName looks like base64 (very long or starts with data:)
+    const users = db.prepare(`
+      SELECT id, username, displayName, avatar 
+      FROM users 
+      WHERE LENGTH(displayName) > 100 
+         OR displayName LIKE 'data:%'
+         OR displayName LIKE '%base64%'
+    `).all();
+
+    let fixed = 0;
+    for (const user of users) {
+      // If displayName looks like base64, move it to avatar and use username as displayName
+      if (user.displayName && (
+        user.displayName.length > 100 || 
+        user.displayName.startsWith('data:') ||
+        user.displayName.includes('base64')
+      )) {
+        const newAvatar = user.displayName.startsWith('data:') ? user.displayName : null;
+        const newDisplayName = user.username;
+        
+        db.prepare('UPDATE users SET displayName = ?, avatar = COALESCE(?, avatar) WHERE id = ?')
+          .run(newDisplayName, newAvatar, user.id);
+        fixed++;
+      }
+    }
+
+    res.json({ success: true, fixed, message: `Corretti ${fixed} utenti` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Errore durante la correzione' });
+  }
+});
+
 module.exports = router;
