@@ -81,30 +81,6 @@ export default function FriendSearch({ currentUserId, onSendFriendRequest }: Fri
         )}
       </div>
 
-      {/* Debug Button */}
-      <div className="mb-6">
-        <button
-          onClick={async () => {
-            try {
-              const response = await fetch('/api/friends/debug/users', {
-                headers: {
-                  'x-user-id': currentUserId,
-                },
-              });
-              const users = await response.json();
-              console.log('🐛 Debug users:', users);
-              alert(`Debug: Trovati ${users.length} utenti nel database. Controlla la console per i dettagli.`);
-            } catch (error) {
-              console.error('Debug error:', error);
-              alert('Errore nel debug. Controlla la console.');
-            }
-          }}
-          className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-4 py-2 text-sm text-yellow-400 hover:bg-yellow-500/20"
-        >
-          🐛 Debug: Mostra tutti gli utenti
-        </button>
-      </div>
-
       {/* Search Results */}
       {searchQuery.trim().length >= 2 && (
         <div className="space-y-3">

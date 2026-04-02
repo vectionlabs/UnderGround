@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getDB } = require('../db');
+const { db } = require('../db');
 
 // Get user's friends
 router.get('/', async (req, res) => {
@@ -10,8 +10,6 @@ router.get('/', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const db = getDB();
-    
     // Get friendships where user is either user1 or user2 and status is 'accepted'
     const query = `
       SELECT 
@@ -26,12 +24,12 @@ router.get('/', async (req, res) => {
         CASE 
           WHEN f.user1_id = $1 THEN u2.display_name
           ELSE u1.display_name
-        END as displayName,
+        END as display_name,
         CASE 
           WHEN f.user1_id = $1 THEN u2.avatar
           ELSE u1.avatar
         END as avatar,
-        f.created_at as addedAt
+        f.created_at as added_at
       FROM friendships f
       JOIN users u1 ON f.user1_id = u1.id
       JOIN users u2 ON f.user2_id = u2.id
@@ -40,8 +38,8 @@ router.get('/', async (req, res) => {
         AND f.user1_id != f.user2_id
     `;
     
-    const result = await db.query(query, [userId]);
-    res.json(result.rows);
+    const result = await db.all(query, [userId]);
+    res.json(result);
   } catch (error) {
     console.error('Error getting friends:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -56,13 +54,11 @@ router.get('/requests', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const db = getDB();
-    
     // Get pending friend requests sent to current user
     const query = `
       SELECT 
         fr.id,
-        u.id as senderId,
+        u.id as sender_id,
         u.username,
         u.display_name,
         u.avatar,
@@ -73,8 +69,8 @@ router.get('/requests', async (req, res) => {
       ORDER BY fr.created_at DESC
     `;
     
-    const result = await db.query(query, [userId]);
-    res.json(result.rows);
+    const result = await db.all(query, [userId]);
+    res.json(result);
   } catch (error) {
     console.error('Error getting friend requests:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -95,7 +91,6 @@ router.get('/search', async (req, res) => {
       return res.json([]);
     }
 
-    const db = getDB();
     const searchPattern = `%${query}%`;
     
     // Simple search without friendships dependency first
@@ -106,7 +101,7 @@ router.get('/search', async (req, res) => {
         u.display_name,
         u.avatar,
         u.bio,
-        false as isFriend
+        false as is_friend
       FROM users u
       WHERE u.id != $1 
         AND (
@@ -127,10 +122,10 @@ router.get('/search', async (req, res) => {
     
     console.log('🔍 Searching users:', { userId, query, searchPattern });
     
-    const result = await db.query(userQuery, [userId, searchPattern, query]);
-    console.log('🔍 Search results:', result.rows.length, 'users found');
+    const result = await db.all(userQuery, [userId, searchPattern, query]);
+    console.log('🔍 Search results:', result.length, 'users found');
     
-    res.json(result.rows);
+    res.json(result);
   } catch (error) {
     console.error('Error searching users:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -145,8 +140,7 @@ router.get('/debug/users', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const db = getDB();
-    const result = await db.query(`
+    const result = await db.all(`
       SELECT id, username, display_name, banned 
       FROM users 
       WHERE banned = false 
@@ -154,8 +148,8 @@ router.get('/debug/users', async (req, res) => {
       LIMIT 10
     `);
     
-    console.log('🐛 Debug: All users:', result.rows);
-    res.json(result.rows);
+    console.log('🐛 Debug: All users:', result);
+    res.json(result);
   } catch (error) {
     console.error('Debug error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -176,30 +170,29 @@ router.post('/request', async (req, res) => {
       return res.status(400).json({ error: 'Cannot send friend request to yourself' });
     }
 
-    const db = getDB();
-    
+        
     // Check if already friends
-    const friendshipCheck = await db.query(
+    const friendshipCheck = await db.all(
       'SELECT id FROM friendships WHERE ((user1_id = $1 AND user2_id = $2) OR (user1_id = $2 AND user2_id = $1)) AND status = $3',
       [userId, targetUserId, 'accepted']
     );
     
-    if (friendshipCheck.rows.length > 0) {
+    if (friendshipCheck.length > 0) {
       return res.status(400).json({ error: 'Already friends' });
     }
     
     // Check if request already exists
-    const requestCheck = await db.query(
+    const requestCheck = await db.all(
       'SELECT id FROM friend_requests WHERE ((sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)) AND status = $3',
       [userId, targetUserId, 'pending']
     );
     
-    if (requestCheck.rows.length > 0) {
+    if (requestCheck.length > 0) {
       return res.status(400).json({ error: 'Friend request already sent' });
     }
     
     // Create friend request
-    await db.query(
+    await db.run(
       'INSERT INTO friend_requests (sender_id, receiver_id, status) VALUES ($1, $2, $3)',
       [userId, targetUserId, 'pending']
     );
@@ -221,30 +214,29 @@ router.post('/accept/:requestId', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const db = getDB();
-    
+        
     // Get the friend request
-    const requestQuery = await db.query(
+    const requestQuery = await db.all(
       'SELECT sender_id, receiver_id FROM friend_requests WHERE id = $1 AND receiver_id = $2 AND status = $3',
       [requestId, userId, 'pending']
     );
     
-    if (requestQuery.rows.length === 0) {
+    if (requestQuery.length === 0) {
       return res.status(404).json({ error: 'Friend request not found' });
     }
     
-    const { sender_id, receiver_id } = requestQuery.rows[0];
+    const { senderId, receiverId } = requestQuery[0];
     
     // Update request status
-    await db.query(
+    await db.run(
       'UPDATE friend_requests SET status = $1 WHERE id = $2',
       ['accepted', requestId]
     );
     
     // Create friendship
-    await db.query(
+    await db.run(
       'INSERT INTO friendships (user1_id, user2_id, status) VALUES ($1, $2, $3)',
-      [sender_id, receiver_id, 'accepted']
+      [senderId, receiverId, 'accepted']
     );
     
     res.json({ success: true });
@@ -264,10 +256,9 @@ router.post('/decline/:requestId', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const db = getDB();
-    
+        
     // Update request status
-    await db.query(
+    await db.run(
       'UPDATE friend_requests SET status = $1 WHERE id = $2 AND receiver_id = $3',
       ['declined', requestId, userId]
     );
@@ -289,10 +280,9 @@ router.delete('/:friendId', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const db = getDB();
-    
+        
     // Remove friendship
-    await db.query(
+    await db.run(
       'DELETE FROM friendships WHERE ((user1_id = $1 AND user2_id = $2) OR (user1_id = $2 AND user2_id = $1))',
       [userId, friendId]
     );
