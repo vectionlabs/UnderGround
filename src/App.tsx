@@ -105,6 +105,7 @@ export default function App() {
   const [stories, setStories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Socket.IO for real-time chat
   const socket = useSocket(currentUser);
@@ -184,7 +185,14 @@ export default function App() {
   const loadAllData = useCallback(async (retryCount = 0) => {
     if (!currentUser) return;
     
+    // Prevent concurrent requests
+    if (isLoadingData) {
+      console.log('🔄 Data loading already in progress, skipping...');
+      return;
+    }
+    
     setIsLoading(true);
+    setIsLoadingData(true);
     setDataError(null);
     
     try {
@@ -207,10 +215,12 @@ export default function App() {
       setFriendList(friendsData);
       setUnreadMessages(unreadData);
       setIsLoading(false);
+      setIsLoadingData(false);
       console.log('✅ Initial data loaded successfully');
     } catch (error) {
       console.error('❌ Error loading data:', error);
       setIsLoading(false);
+      setIsLoadingData(false);
       
       if (retryCount < 2) {
         console.log(`🔄 Retrying data load... (${retryCount + 1}/2)`);
@@ -220,13 +230,13 @@ export default function App() {
         setDataError('Impossibile caricare i dati. Riprova più tardi.');
       }
     }
-  }, [currentUser]);
+  }, [currentUser, isLoadingData]);
 
   // Load data when user changes
   useEffect(() => {
     if (currentUser) {
       loadAllData();
-      const interval = setInterval(loadAllData, 30000);
+      const interval = setInterval(loadAllData, 60000); // Reduced from 30s to 60s
       return () => clearInterval(interval);
     }
   }, [currentUser, loadAllData]);

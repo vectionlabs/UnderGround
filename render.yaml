@@ -4,7 +4,7 @@ services:
     name: underground
     runtime: node
     buildCommand: npm install && npm run build && cp -r dist server/ && cd server && npm install
-    startCommand: cd server && npm start
+    startCommand: cd server && NODE_OPTIONS="--max-old-space-size=512 --expose-gc" npm start
     envVars:
       - key: NODE_ENV
         value: production

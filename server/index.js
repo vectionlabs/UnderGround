@@ -18,6 +18,14 @@ const app = express();
 const server = http.createServer(app);
 
 const isProduction = process.env.NODE_ENV === 'production';
+
+// Force garbage collection every 5 minutes in production
+if (isProduction && global.gc) {
+  setInterval(() => {
+    global.gc();
+    console.log('🗑️ Forced garbage collection');
+  }, 5 * 60 * 1000);
+}
 const allowedOrigins = isProduction 
   ? [process.env.RENDER_EXTERNAL_URL, 'https://underground.onrender.com']
   : ['http://localhost:5173', 'http://127.0.0.1:5173'];
