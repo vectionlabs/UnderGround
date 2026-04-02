@@ -1,5 +1,9 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
+const dns = require('dns');
+
+// Force IPv4 DNS resolution (Render free tier doesn't support IPv6 outbound)
+dns.setDefaultResultOrder('ipv4first');
 
 // Supabase PostgreSQL connection
 const DATABASE_URL = process.env.DATABASE_URL;
