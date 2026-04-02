@@ -186,6 +186,9 @@ export const friends = {
   requests: () =>
     apiRequest<FriendRequest[]>('/friends/requests'),
   
+  searchUsers: (query: string) =>
+    apiRequest<User[]>(`/friends/search?q=${encodeURIComponent(query)}`),
+  
   send: (userId: string) =>
     apiRequest<{ success: boolean }>('/friends/request', { method: 'POST', body: { userId } }),
   
@@ -197,9 +200,6 @@ export const friends = {
   
   remove: (friendId: string) =>
     apiRequest<{ success: boolean }>(`/friends/${friendId}`, { method: 'DELETE' }),
-
-  searchUsers: (query: string) =>
-    apiRequest<User[]>(`/friends/search?q=${encodeURIComponent(query)}`),
 };
 
 // Admin

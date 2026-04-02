@@ -66,8 +66,8 @@ app.use('/api/groups', groupsRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/reels', reelsRoutes);
 app.use('/api/media', mediaRoutes);
-app.use('/api/admin', adminRoutes);
 app.use('/api/friends', friendsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

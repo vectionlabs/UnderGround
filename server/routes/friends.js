@@ -1,63 +1,141 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
+const { getDB } = require('../db');
 
-// Get all friends for current user
+// Get user's friends
 router.get('/', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
     if (!userId) {
-      return res.status(401).json({ error: 'User ID required' });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    const db = getDB();
+    
+    // Get friendships where user is either user1 or user2 and status is 'accepted'
     const query = `
       SELECT 
-        f.id,
-        f.friend_id as friendId,
-        f.created_at as createdAt,
-        u.username as friendUsername,
-        u.display_name as friendDisplayName,
-        u.avatar as friendAvatar
-      FROM friends f
-      JOIN users u ON (f.friend_id = u.id)
-      WHERE f.user_id = $1
-      ORDER BY f.created_at DESC
+        CASE 
+          WHEN f.user1_id = $1 THEN u2.id
+          ELSE u1.id
+        END as id,
+        CASE 
+          WHEN f.user1_id = $1 THEN u2.username
+          ELSE u1.username
+        END as username,
+        CASE 
+          WHEN f.user1_id = $1 THEN u2.display_name
+          ELSE u1.display_name
+        END as displayName,
+        CASE 
+          WHEN f.user1_id = $1 THEN u2.avatar
+          ELSE u1.avatar
+        END as avatar,
+        f.created_at as addedAt
+      FROM friendships f
+      JOIN users u1 ON f.user1_id = u1.id
+      JOIN users u2 ON f.user2_id = u2.id
+      WHERE (f.user1_id = $1 OR f.user2_id = $1) 
+        AND f.status = 'accepted'
+        AND f.user1_id != f.user2_id
     `;
     
-    const result = await db.all(query, [userId]);
-    res.json(result);
+    const result = await db.query(query, [userId]);
+    res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching friends:', error);
+    console.error('Error getting friends:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Get friend requests for current user
+// Get friend requests
 router.get('/requests', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
     if (!userId) {
-      return res.status(401).json({ error: 'User ID required' });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    const db = getDB();
+    
+    // Get pending friend requests sent to current user
     const query = `
       SELECT 
         fr.id,
-        fr.requester_id as requesterId,
-        fr.created_at as createdAt,
-        u.username as requesterUsername,
-        u.display_name as requesterDisplayName,
-        u.avatar as requesterAvatar
+        u.id as senderId,
+        u.username,
+        u.display_name,
+        u.avatar,
+        fr.created_at
       FROM friend_requests fr
-      JOIN users u ON (fr.requester_id = u.id)
+      JOIN users u ON fr.sender_id = u.id
       WHERE fr.receiver_id = $1 AND fr.status = 'pending'
       ORDER BY fr.created_at DESC
     `;
     
-    const result = await db.all(query, [userId]);
-    res.json(result);
+    const result = await db.query(query, [userId]);
+    res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching friend requests:', error);
+    console.error('Error getting friend requests:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Search users (for adding friends)
+router.get('/search', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    const query = req.query.q;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    if (!query || query.length < 2) {
+      return res.json([]);
+    }
+
+    const db = getDB();
+    const searchPattern = `%${query}%`;
+    
+    // Search users by username or display_name
+    const userQuery = `
+      SELECT 
+        u.id,
+        u.username,
+        u.display_name,
+        u.avatar,
+        u.bio,
+        CASE 
+          WHEN f.id IS NOT NULL THEN true
+          ELSE false
+        END as isFriend
+      FROM users u
+      LEFT JOIN friendships f ON (
+        (f.user1_id = u.id AND f.user2_id = $1) OR 
+        (f.user2_id = u.id AND f.user1_id = $1)
+      ) AND f.status = 'accepted'
+      WHERE u.id != $1 
+        AND (
+          LOWER(u.username) LIKE LOWER($2) OR 
+          LOWER(u.display_name) LIKE LOWER($2)
+        )
+        AND u.banned = false
+      ORDER BY 
+        CASE 
+          WHEN LOWER(u.username) = LOWER($3) THEN 1
+          WHEN LOWER(u.username) LIKE LOWER($3) THEN 2
+          WHEN LOWER(u.display_name) LIKE LOWER($3) THEN 3
+          ELSE 4
+        END,
+        u.username
+      LIMIT 20
+    `;
+    
+    const result = await db.query(userQuery, [userId, searchPattern, query]);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error searching users:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -69,42 +147,42 @@ router.post('/request', async (req, res) => {
     const { userId: targetUserId } = req.body;
     
     if (!userId || !targetUserId) {
-      return res.status(400).json({ error: 'User ID and target user ID required' });
+      return res.status(400).json({ error: 'Missing required fields' });
     }
-
+    
     if (userId === targetUserId) {
       return res.status(400).json({ error: 'Cannot send friend request to yourself' });
     }
 
+    const db = getDB();
+    
     // Check if already friends
-    const friendsCheck = await db.get(
-      'SELECT 1 FROM friends WHERE user_id = $1 AND friend_id = $2',
-      [userId, targetUserId]
+    const friendshipCheck = await db.query(
+      'SELECT id FROM friendships WHERE ((user1_id = $1 AND user2_id = $2) OR (user1_id = $2 AND user2_id = $1)) AND status = $3',
+      [userId, targetUserId, 'accepted']
     );
     
-    if (friendsCheck) {
+    if (friendshipCheck.rows.length > 0) {
       return res.status(400).json({ error: 'Already friends' });
     }
-
+    
     // Check if request already exists
-    const requestCheck = await db.get(
-      'SELECT 1 FROM friend_requests WHERE requester_id = $1 AND receiver_id = $2 AND status = $3',
+    const requestCheck = await db.query(
+      'SELECT id FROM friend_requests WHERE ((sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)) AND status = $3',
       [userId, targetUserId, 'pending']
     );
     
-    if (requestCheck) {
+    if (requestCheck.rows.length > 0) {
       return res.status(400).json({ error: 'Friend request already sent' });
     }
-
-    // Create friend request
-    const query = `
-      INSERT INTO friend_requests (requester_id, receiver_id, status)
-      VALUES ($1, $2, 'pending')
-      RETURNING id
-    `;
     
-    const result = await db.get(query, [userId, targetUserId]);
-    res.json({ success: true, requestId: result.id });
+    // Create friend request
+    await db.query(
+      'INSERT INTO friend_requests (sender_id, receiver_id, status) VALUES ($1, $2, $3)',
+      [userId, targetUserId, 'pending']
+    );
+    
+    res.json({ success: true });
   } catch (error) {
     console.error('Error sending friend request:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -118,45 +196,35 @@ router.post('/accept/:requestId', async (req, res) => {
     const { requestId } = req.params;
     
     if (!userId || !requestId) {
-      return res.status(400).json({ error: 'User ID and request ID required' });
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Get request details
-    const requestQuery = `
-      UPDATE friend_requests 
-      SET status = 'accepted'
-      WHERE id = $1 AND receiver_id = $2 AND status = 'pending'
-      RETURNING requester_id
-    `;
+    const db = getDB();
     
-    const requestResult = await db.get(requestQuery, [requestId, userId]);
+    // Get the friend request
+    const requestQuery = await db.query(
+      'SELECT sender_id, receiver_id FROM friend_requests WHERE id = $1 AND receiver_id = $2 AND status = $3',
+      [requestId, userId, 'pending']
+    );
     
-    if (!requestResult) {
+    if (requestQuery.rows.length === 0) {
       return res.status(404).json({ error: 'Friend request not found' });
     }
-
-    const requesterId = requestResult.requesterId;
-
-    // Create friendship (both directions)
-    await db.run('BEGIN');
     
-    try {
-      await db.run(
-        'INSERT INTO friends (user_id, friend_id) VALUES ($1, $2)',
-        [userId, requesterId]
-      );
-      
-      await db.run(
-        'INSERT INTO friends (user_id, friend_id) VALUES ($1, $2)',
-        [requesterId, userId]
-      );
-      
-      await db.run('COMMIT');
-    } catch (error) {
-      await db.run('ROLLBACK');
-      throw error;
-    }
-
+    const { sender_id, receiver_id } = requestQuery.rows[0];
+    
+    // Update request status
+    await db.query(
+      'UPDATE friend_requests SET status = $1 WHERE id = $2',
+      ['accepted', requestId]
+    );
+    
+    // Create friendship
+    await db.query(
+      'INSERT INTO friendships (user1_id, user2_id, status) VALUES ($1, $2, $3)',
+      [sender_id, receiver_id, 'accepted']
+    );
+    
     res.json({ success: true });
   } catch (error) {
     console.error('Error accepting friend request:', error);
@@ -171,19 +239,17 @@ router.post('/decline/:requestId', async (req, res) => {
     const { requestId } = req.params;
     
     if (!userId || !requestId) {
-      return res.status(400).json({ error: 'User ID and request ID required' });
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const query = `
-      UPDATE friend_requests 
-      SET status = 'declined'
-      WHERE id = $1 AND receiver_id = $2 AND status = 'pending'
-    `;
+    const db = getDB();
     
-    const result = await db.run(query, [requestId, userId]);
+    // Update request status
+    await db.query(
+      'UPDATE friend_requests SET status = $1 WHERE id = $2 AND receiver_id = $3',
+      ['declined', requestId, userId]
+    );
     
-    // No need to check rows affected for decline
-
     res.json({ success: true });
   } catch (error) {
     console.error('Error declining friend request:', error);
@@ -198,63 +264,20 @@ router.delete('/:friendId', async (req, res) => {
     const { friendId } = req.params;
     
     if (!userId || !friendId) {
-      return res.status(400).json({ error: 'User ID and friend ID required' });
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Remove friendship (both directions)
-    const query = `
-      DELETE FROM friends 
-      WHERE (user_id = $1 AND friend_id = $2) 
-         OR (user_id = $2 AND friend_id = $1)
-    `;
+    const db = getDB();
     
-    await db.run(query, [userId, friendId]);
-
+    // Remove friendship
+    await db.query(
+      'DELETE FROM friendships WHERE ((user1_id = $1 AND user2_id = $2) OR (user1_id = $2 AND user2_id = $1))',
+      [userId, friendId]
+    );
+    
     res.json({ success: true });
   } catch (error) {
     console.error('Error removing friend:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Search users
-router.get('/search', async (req, res) => {
-  try {
-    const userId = req.headers['x-user-id'];
-    const { q } = req.query;
-    
-    if (!userId || !q) {
-      return res.status(400).json({ error: 'User ID and search query required' });
-    }
-
-    if (q.length < 2) {
-      return res.json([]);
-    }
-
-    const searchQuery = `
-      SELECT 
-        id,
-        username,
-        display_name as displayName,
-        avatar,
-        bio
-      FROM users 
-      WHERE (
-        username ILIKE $1 
-        OR display_name ILIKE $1
-      )
-      AND id != $2
-      AND id NOT IN (
-        SELECT friend_id FROM friends WHERE user_id = $2
-      )
-      ORDER BY username
-      LIMIT 20
-    `;
-    
-    const result = await db.all(searchQuery, [`%${q}%`, userId]);
-    res.json(result);
-  } catch (error) {
-    console.error('Error searching users:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

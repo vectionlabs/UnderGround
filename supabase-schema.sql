@@ -66,25 +66,6 @@ CREATE TABLE IF NOT EXISTS group_members (
   PRIMARY KEY (group_id, user_id)
 );
 
--- Friends
-CREATE TABLE IF NOT EXISTS friends (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  friend_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, friend_id)
-);
-
--- Friend requests
-CREATE TABLE IF NOT EXISTS friend_requests (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
-  requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  receiver_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(requester_id, receiver_id)
-);
-
 -- Posts
 CREATE TABLE IF NOT EXISTS posts (
   id TEXT PRIMARY KEY,
@@ -196,6 +177,27 @@ INSERT INTO channels (id, name, description, icon, is_public) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
+-- Friendships
+CREATE TABLE IF NOT EXISTS friendships (
+  id TEXT PRIMARY KEY,
+  user1_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user2_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'pending', -- pending, accepted, declined
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user1_id, user2_id)
+);
+
+-- Friend requests
+CREATE TABLE IF NOT EXISTS friend_requests (
+  id TEXT PRIMARY KEY,
+  sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  receiver_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'pending', -- pending, accepted, declined
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(sender_id, receiver_id)
+);
+
 -- Indexes for performance
 -- ============================================
 CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_id);
@@ -210,3 +212,7 @@ CREATE INDEX IF NOT EXISTS idx_gm_group ON group_messages(group_id);
 CREATE INDEX IF NOT EXISTS idx_channel_members_user ON channel_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_reel_likes_reel ON reel_likes(reel_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_user1 ON friendships(user1_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_user2 ON friendships(user2_id);
+CREATE INDEX IF NOT EXISTS idx_friend_requests_sender ON friend_requests(sender_id);
+CREATE INDEX IF NOT EXISTS idx_friend_requests_receiver ON friend_requests(receiver_id);

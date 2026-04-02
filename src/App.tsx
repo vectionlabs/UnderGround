@@ -31,6 +31,9 @@ import {
   BellIcon,
   SearchIcon,
   SettingsIcon,
+  XIcon,
+  AdminIcon,
+  UserPlusIcon,
 } from "./components/Icons";
 import Feed from "./components/Feed";
 import ReelsComponent from "./components/Reels";
@@ -45,9 +48,9 @@ import NotificationsPanel from "./components/NotificationsPanel";
 import SettingsPanel, { type AppSettings } from "./components/SettingsPanel";
 import AdminPanel from "./components/AdminPanel";
 import BannedScreen from "./components/BannedScreen";
-// import Friends from "./components/Friends";
+import FriendSearch from "./components/FriendSearch";
 
-type Tab = "feed" | "reels" | "canali" | "gruppi" | "messaggi" | "amici" | "crea" | "profilo" | "admin";
+type Tab = "feed" | "reels" | "canali" | "gruppi" | "messaggi" | "crea" | "profilo" | "amici" | "admin";
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: 'sunset',
@@ -260,23 +263,23 @@ export default function App() {
     }
   }, [currentUser, loadAllData]);
 
-  // Lazy load tab data when tab becomes active (DISABLED FOR DEBUGGING)
-  // useEffect(() => {
-  //   if (!activeTabData[activeTab]) {
-  //     console.log(`🔄 Loading data for tab: ${activeTab}`);
-  //     setActiveTabData(prev => ({ ...prev, [activeTab]: true }));
-  //     
-  //     // Load specific data for this tab
-  //     if (activeTab === 'messaggi' && !conversationList.length) {
-  //       messages.conversations().then(setConversationList).catch(console.error);
-  //       messages.unreadCount().then(setUnreadMessages).catch(console.error);
-  //     } else if (activeTab === 'reels' && !reelList.length) {
-  //       reels.list().then(setReelList).catch(console.error);
-  //     } else if (activeTab === 'gruppi' && !groupList.length) {
-  //       groups.list().then(setGroupList).catch(console.error);
-  //     }
-  //   }
-  // }, [activeTab]);
+  // Lazy load tab data when tab becomes active
+  useEffect(() => {
+    if (!activeTabData[activeTab]) {
+      console.log(`🔄 Loading data for tab: ${activeTab}`);
+      setActiveTabData(prev => ({ ...prev, [activeTab]: true }));
+      
+      // Load specific data for this tab
+      if (activeTab === 'messaggi' && !conversationList.length) {
+        messages.conversations().then(setConversationList).catch(console.error);
+        messages.unreadCount().then(setUnreadMessages).catch(console.error);
+      } else if (activeTab === 'reels' && !reelList.length) {
+        reels.list().then(setReelList).catch(console.error);
+      } else if (activeTab === 'gruppi' && !groupList.length) {
+        groups.list().then(setGroupList).catch(console.error);
+      }
+    }
+  }, [activeTab]);
 
   // Auth handlers
   const handleLogin = async (e: FormEvent) => {
@@ -648,7 +651,7 @@ export default function App() {
     { id: "canali", label: "Canali", icon: <HashIcon size={20} /> },
     { id: "gruppi", label: "Gruppi", icon: <GroupIcon size={20} /> },
     { id: "messaggi", label: "Messaggi", icon: <MessageIcon size={20} /> },
-    { id: "amici", label: "Amici", icon: <UsersIcon size={20} /> },
+    { id: "amici", label: "Amici", icon: <UserPlusIcon size={20} /> },
     { id: "crea", label: "Crea", icon: <PlusIcon size={20} /> },
     { id: "profilo", label: "Profilo", icon: <UserIcon size={20} /> },
     ...(currentUser?.role === 'admin' ? [{ id: "admin", label: "Admin", icon: <AdminIcon size={20} /> }] : []),
@@ -1016,21 +1019,6 @@ export default function App() {
             </motion.div>
           )}
 
-          {activeTab === "amici" && (
-            <motion.div
-              key="amici"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              <div className="p-6">
-                <h2 className="text-2xl font-bold mb-4">Amici</h2>
-                <p className="text-slate-400">Funzionalità amici in arrivo!</p>
-                <p className="mt-2 text-sm text-slate-500">Usa i pulsanti + nei post per aggiungere amici.</p>
-              </div>
-            </motion.div>
-          )}
-
           {activeTab === "crea" && (
             <motion.div
               key="crea"
@@ -1039,6 +1027,20 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
             >
               <CreatePost channels={joinedChannels} currentUser={currentUser!} onPublish={handleCreatePost} />
+            </motion.div>
+          )}
+
+          {activeTab === "amici" && currentUser && (
+            <motion.div
+              key="amici"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <FriendSearch 
+                currentUserId={currentUser.id} 
+                onSendFriendRequest={handleSendFriendRequest} 
+              />
             </motion.div>
           )}
 
