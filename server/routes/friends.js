@@ -98,7 +98,7 @@ router.get('/search', async (req, res) => {
     const db = getDB();
     const searchPattern = `%${query}%`;
     
-    // Search users by username or display_name
+    // Simple search without friendships dependency first
     const userQuery = `
       SELECT 
         u.id,
@@ -106,15 +106,8 @@ router.get('/search', async (req, res) => {
         u.display_name,
         u.avatar,
         u.bio,
-        CASE 
-          WHEN f.id IS NOT NULL THEN true
-          ELSE false
-        END as isFriend
+        false as isFriend
       FROM users u
-      LEFT JOIN friendships f ON (
-        (f.user1_id = u.id AND f.user2_id = $1) OR 
-        (f.user2_id = u.id AND f.user1_id = $1)
-      ) AND f.status = 'accepted'
       WHERE u.id != $1 
         AND (
           LOWER(u.username) LIKE LOWER($2) OR 
@@ -132,10 +125,39 @@ router.get('/search', async (req, res) => {
       LIMIT 20
     `;
     
+    console.log('🔍 Searching users:', { userId, query, searchPattern });
+    
     const result = await db.query(userQuery, [userId, searchPattern, query]);
+    console.log('🔍 Search results:', result.rows.length, 'users found');
+    
     res.json(result.rows);
   } catch (error) {
     console.error('Error searching users:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Debug: Get all users (remove in production)
+router.get('/debug/users', async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const db = getDB();
+    const result = await db.query(`
+      SELECT id, username, display_name, banned 
+      FROM users 
+      WHERE banned = false 
+      ORDER BY username
+      LIMIT 10
+    `);
+    
+    console.log('🐛 Debug: All users:', result.rows);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Debug error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
