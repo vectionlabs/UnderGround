@@ -45,7 +45,7 @@ import NotificationsPanel from "./components/NotificationsPanel";
 import SettingsPanel, { type AppSettings } from "./components/SettingsPanel";
 import AdminPanel from "./components/AdminPanel";
 import BannedScreen from "./components/BannedScreen";
-import Friends from "./components/Friends";
+// import Friends from "./components/Friends";
 
 type Tab = "feed" | "reels" | "canali" | "gruppi" | "messaggi" | "amici" | "crea" | "profilo" | "admin";
 
@@ -648,7 +648,7 @@ export default function App() {
     { id: "canali", label: "Canali", icon: <HashIcon size={20} /> },
     { id: "gruppi", label: "Gruppi", icon: <GroupIcon size={20} /> },
     { id: "messaggi", label: "Messaggi", icon: <MessageIcon size={20} /> },
-    { id: "amici", label: "Amici", icon: <UsersIcon size={20} /> },
+    // { id: "amici", label: "Amici", icon: <UsersIcon size={20} /> },
     { id: "crea", label: "Crea", icon: <PlusIcon size={20} /> },
     { id: "profilo", label: "Profilo", icon: <UserIcon size={20} /> },
     ...(currentUser?.role === 'admin' ? [{ id: "admin", label: "Admin", icon: <AdminIcon size={20} /> }] : []),
@@ -1016,7 +1016,7 @@ export default function App() {
             </motion.div>
           )}
 
-          {activeTab === "amici" && (
+          {/* {activeTab === "amici" && (
             <motion.div
               key="amici"
               initial={{ opacity: 0, y: 10 }}
@@ -1029,7 +1029,7 @@ export default function App() {
                 onRefreshFriends={() => friends.list().then(setFriendList).catch(console.error)}
               />
             </motion.div>
-          )}
+          )} */}
 
           {activeTab === "crea" && (
             <motion.div
