@@ -5,6 +5,15 @@ import type { Post, Comment, Channel } from '../hooks/useApi';
 
 const REACTIONS = ['❤️', '😂', '😮', '😢', '😡', '👏', '🔥', '💯'];
 
+// Sanitize names to prevent base64 strings from showing as text
+const safeName = (name: string) => {
+  if (!name) return '?';
+  if (name.length > 50 || name.includes('base64') || name.startsWith('data:')) {
+    return name.substring(0, 20).replace(/[^a-zA-Z0-9\s._-]/g, '').trim() || '?';
+  }
+  return name;
+};
+
 type FeedProps = {
   posts: Post[];
   channels: Channel[];
@@ -126,15 +135,15 @@ export default function Feed({
                   />
                 ) : (
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-pink-500 to-orange-400 text-lg font-bold">
-                    {post.authorName.charAt(0).toUpperCase()}
+                    {safeName(post.authorName).charAt(0).toUpperCase()}
                   </div>
                 )}
                 <div>
                   <p className="font-semibold">
-                    {(post as any).publishAsName || post.authorName}
+                    {safeName((post as any).publishAsName || post.authorName)}
                     {(post as any).publishAsName && (
                       <span className="ml-2 text-xs font-normal text-slate-400">
-                        (da {post.authorName})
+                        (da {safeName(post.authorName)})
                       </span>
                     )}
                   </p>

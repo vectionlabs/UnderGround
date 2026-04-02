@@ -123,7 +123,11 @@ router.patch('/profile', (req, res) => {
   const updates = [];
   const values = [];
 
-  if (displayName !== undefined) { updates.push('displayName = ?'); values.push(displayName); }
+  if (displayName !== undefined) {
+    // Prevent base64 data from being saved as displayName
+    const cleanName = (displayName || '').substring(0, 50).replace(/data:image[^;]*;base64,.*/, '').trim();
+    if (cleanName) { updates.push('displayName = ?'); values.push(cleanName); }
+  }
   if (bio !== undefined) { updates.push('bio = ?'); values.push(bio); }
   if (avatar !== undefined) { updates.push('avatar = ?'); values.push(avatar); }
   if (banner !== undefined) { updates.push('banner = ?'); values.push(banner); }
