@@ -16,6 +16,8 @@ export default defineConfig({
     },
   },
   server: {
+    // Allow Render host to access the dev server
+    allowedHosts: ["underground-qlgh.onrender.com"],
     proxy: {
       "/api": {
         target: "http://localhost:3001",
@@ -23,4 +25,8 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    allowedHosts: ["underground-qlgh.onrender.com"],
+  },
 });
+
