@@ -103,6 +103,8 @@ export default function App() {
   });
   const [notifications, setNotifications] = useState<any[]>([]);
   const [stories, setStories] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
 
   // Socket.IO for real-time chat
   const socket = useSocket(currentUser);
@@ -179,18 +181,24 @@ export default function App() {
     }
   };
 
-  const loadAllData = useCallback(async () => {
+  const loadAllData = useCallback(async (retryCount = 0) => {
     if (!currentUser) return;
+    
+    setIsLoading(true);
+    setDataError(null);
+    
     try {
+      console.log('🔄 Loading initial data...');
       const [postsData, channelsData, groupsData, conversationsData, reelsData, friendsData, unreadData] = await Promise.all([
-        posts.list(),
-        channels.list(),
-        groups.list(),
-        messages.conversations(),
-        reels.list(),
-        friends.list().catch(() => []),
-        messages.unreadCount(),
+        posts.list().catch(e => { console.warn('Posts load failed:', e); return []; }),
+        channels.list().catch(e => { console.warn('Channels load failed:', e); return []; }),
+        groups.list().catch(e => { console.warn('Groups load failed:', e); return []; }),
+        messages.conversations().catch(e => { console.warn('Conversations load failed:', e); return []; }),
+        reels.list().catch(e => { console.warn('Reels load failed:', e); return []; }),
+        friends.list().catch(e => { console.warn('Friends load failed:', e); return []; }),
+        messages.unreadCount().catch(e => { console.warn('Unread count failed:', e); return 0; }),
       ]);
+      
       setPostList(postsData);
       setChannelList(channelsData);
       setGroupList(groupsData);
@@ -198,8 +206,19 @@ export default function App() {
       setReelList(reelsData);
       setFriendList(friendsData);
       setUnreadMessages(unreadData);
-    } catch (e) {
-      console.error("Failed to load data:", e);
+      setIsLoading(false);
+      console.log('✅ Initial data loaded successfully');
+    } catch (error) {
+      console.error('❌ Error loading data:', error);
+      setIsLoading(false);
+      
+      if (retryCount < 2) {
+        console.log(`🔄 Retrying data load... (${retryCount + 1}/2)`);
+        setTimeout(() => loadAllData(retryCount + 1), 2000 * (retryCount + 1));
+      } else {
+        console.error('❌ Failed to load data after 2 retries');
+        setDataError('Impossibile caricare i dati. Riprova più tardi.');
+      }
     }
   }, [currentUser]);
 
@@ -801,7 +820,29 @@ export default function App() {
 
       {/* Main content */}
       <main className="mx-auto max-w-4xl px-4 py-6">
-        <AnimatePresence mode="wait">
+        {/* Loading state */}
+        {isLoading && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-pink-500 border-t-transparent"></div>
+            <p className="mt-4 text-slate-400">Caricamento dati...</p>
+          </div>
+        )}
+
+        {/* Error state */}
+        {dataError && !isLoading && (
+          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
+            <p className="text-red-400">{dataError}</p>
+            <button
+              onClick={() => loadAllData()}
+              className="mt-4 rounded-lg bg-pink-500 px-4 py-2 text-white hover:bg-pink-600"
+            >
+              Riprova
+            </button>
+          </div>
+        )}
+
+        {!isLoading && !dataError && (
+          <AnimatePresence mode="wait">
           {activeTab === "feed" && (
             <motion.div
               key="feed"
@@ -945,7 +986,8 @@ export default function App() {
               <AdminPanel />
             </motion.div>
           )}
-        </AnimatePresence>
+          </AnimatePresence>
+        )}
       </main>
 
       {/* Search Panel */}

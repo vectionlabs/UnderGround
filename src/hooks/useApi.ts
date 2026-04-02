@@ -22,18 +22,50 @@ async function apiRequest<T>(endpoint: string, options: RequestOptions = {}): Pr
     headers['x-user-id'] = userId;
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  // Add timeout and retry logic
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Errore di rete' }));
-    throw new Error(error.error || 'Errore sconosciuto');
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Errore di rete' }));
+      throw new Error(error.error || 'Errore sconosciuto');
+    }
+
+    return response.json();
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    
+    // Retry once for network errors
+    if (err.name === 'AbortError' || err.message.includes('fetch')) {
+      console.warn(`Retrying ${endpoint}...`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const retryResponse = await fetch(`${API_BASE}${endpoint}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      
+      if (!retryResponse.ok) {
+        const error = await retryResponse.json().catch(() => ({ error: 'Errore di rete' }));
+        throw new Error(error.error || 'Errore sconosciuto');
+      }
+      
+      return retryResponse.json();
+    }
+    
+    throw err;
   }
-
-  return response.json();
 }
 
 // Auth
