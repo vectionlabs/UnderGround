@@ -3,21 +3,21 @@ const router = express.Router();
 const { db, generateId } = require('../db');
 
 // Get all channels
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const userId = req.headers['x-user-id'];
   
-  const channels = db.prepare(`
+  const channels = await db.all(`
     SELECT c.*, 
-           (SELECT COUNT(*) FROM channel_members WHERE channelId = c.id) as memberCount,
-           u.displayName as creatorName
+           (SELECT COUNT(*) FROM channel_members WHERE channel_id = c.id) as member_count,
+           u.display_name as creator_name
     FROM channels c
-    LEFT JOIN users u ON c.createdBy = u.id
-    WHERE c.isPublic = 1
+    LEFT JOIN users u ON c.created_by = u.id
+    WHERE c.is_public = true
     ORDER BY c.name ASC
-  `).all();
+  `);
 
   if (userId) {
-    const joined = db.prepare('SELECT channelId FROM channel_members WHERE userId = ?').all(userId);
+    const joined = await db.all('SELECT channel_id FROM channel_members WHERE user_id = $1', [userId]);
     const joinedSet = new Set(joined.map(j => j.channelId));
     channels.forEach(c => c.joined = joinedSet.has(c.id));
   }
@@ -26,27 +26,27 @@ router.get('/', (req, res) => {
 });
 
 // Get user's joined channels
-router.get('/joined', (req, res) => {
+router.get('/joined', async (req, res) => {
   const userId = req.headers['x-user-id'];
   if (!userId) {
     return res.status(401).json({ error: 'Non autenticato' });
   }
 
-  const channels = db.prepare(`
+  const channels = await db.all(`
     SELECT c.*, 
-           (SELECT COUNT(*) FROM channel_members WHERE channelId = c.id) as memberCount
+           (SELECT COUNT(*) FROM channel_members WHERE channel_id = c.id) as member_count
     FROM channels c
-    JOIN channel_members cm ON c.id = cm.channelId
-    WHERE cm.userId = ?
+    JOIN channel_members cm ON c.id = cm.channel_id
+    WHERE cm.user_id = $1
     ORDER BY c.name ASC
-  `).all(userId);
+  `, [userId]);
 
   channels.forEach(c => c.joined = true);
   res.json(channels);
 });
 
 // Create channel
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const userId = req.headers['x-user-id'];
   if (!userId) {
     return res.status(401).json({ error: 'Non autenticato' });
@@ -57,29 +57,29 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Nome canale richiesto' });
   }
 
-  const existing = db.prepare('SELECT id FROM channels WHERE LOWER(name) = LOWER(?)').get(name.trim());
+  const existing = await db.get('SELECT id FROM channels WHERE LOWER(name) = LOWER($1)', [name.trim()]);
   if (existing) {
     return res.status(400).json({ error: 'Nome canale già esistente' });
   }
 
   const id = generateId();
-  db.prepare(`
-    INSERT INTO channels (id, name, description, icon, createdBy)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(id, name.trim(), description || '', icon || '📢', userId);
+  await db.run(`
+    INSERT INTO channels (id, name, description, icon, created_by)
+    VALUES ($1, $2, $3, $4, $5)
+  `, [id, name.trim(), description || '', icon || '📢', userId]);
 
   // Auto-join creator
-  db.prepare('INSERT INTO channel_members (channelId, userId) VALUES (?, ?)').run(id, userId);
+  await db.run('INSERT INTO channel_members (channel_id, user_id) VALUES ($1, $2)', [id, userId]);
 
   // Badge for channel creator
-  const user = db.prepare('SELECT badges FROM users WHERE id = ?').get(userId);
+  const user = await db.get('SELECT badges FROM users WHERE id = $1', [userId]);
   const badges = JSON.parse(user.badges || '[]');
   if (!badges.includes('channel_creator')) {
     badges.push('channel_creator');
-    db.prepare('UPDATE users SET badges = ? WHERE id = ?').run(JSON.stringify(badges), userId);
+    await db.run('UPDATE users SET badges = $1 WHERE id = $2', [JSON.stringify(badges), userId]);
   }
 
-  const channel = db.prepare('SELECT * FROM channels WHERE id = ?').get(id);
+  const channel = await db.get('SELECT * FROM channels WHERE id = $1', [id]);
   channel.memberCount = 1;
   channel.joined = true;
 
@@ -87,78 +87,40 @@ router.post('/', (req, res) => {
 });
 
 // Join channel
-router.post('/:id/join', (req, res) => {
+router.post('/:id/join', async (req, res) => {
   const userId = req.headers['x-user-id'];
   if (!userId) {
     return res.status(401).json({ error: 'Non autenticato' });
   }
 
   const channelId = req.params.id;
-  const channel = db.prepare('SELECT * FROM channels WHERE id = ?').get(channelId);
+  const channel = await db.get('SELECT * FROM channels WHERE id = $1', [channelId]);
   if (!channel) {
     return res.status(404).json({ error: 'Canale non trovato' });
   }
 
-  const existing = db.prepare('SELECT * FROM channel_members WHERE channelId = ? AND userId = ?').get(channelId, userId);
+  const existing = await db.get('SELECT * FROM channel_members WHERE channel_id = $1 AND user_id = $2', [channelId, userId]);
   if (existing) {
     return res.status(400).json({ error: 'Già iscritto' });
   }
 
-  db.prepare('INSERT INTO channel_members (channelId, userId) VALUES (?, ?)').run(channelId, userId);
+  await db.run('INSERT INTO channel_members (channel_id, user_id) VALUES ($1, $2)', [channelId, userId]);
 
-  const memberCount = db.prepare('SELECT COUNT(*) as count FROM channel_members WHERE channelId = ?').get(channelId).count;
-  res.json({ joined: true, memberCount });
+  const row = await db.get('SELECT COUNT(*) as count FROM channel_members WHERE channel_id = $1', [channelId]);
+  res.json({ joined: true, memberCount: parseInt(row.count) });
 });
 
 // Leave channel
-router.post('/:id/leave', (req, res) => {
+router.post('/:id/leave', async (req, res) => {
   const userId = req.headers['x-user-id'];
   if (!userId) {
     return res.status(401).json({ error: 'Non autenticato' });
   }
 
-  db.prepare('DELETE FROM channel_members WHERE channelId = ? AND userId = ?').run(req.params.id, userId);
+  await db.run('DELETE FROM channel_members WHERE channel_id = $1 AND user_id = $2', [req.params.id, userId]);
 
-  const memberCount = db.prepare('SELECT COUNT(*) as count FROM channel_members WHERE channelId = ?').get(req.params.id).count;
-  res.json({ joined: false, memberCount });
-});
-
-// Fix corrupted channels (base64 in name)
-router.post('/fix-corrupted', (req, res) => {
-  try {
-    // Find channels where name contains base64
-    const channels = db.prepare(`
-      SELECT id, name, description, icon 
-      FROM channels 
-      WHERE LENGTH(name) > 50 
-         OR name LIKE '%base64%'
-         OR name LIKE 'data:%'
-    `).all();
-
-    let fixed = 0;
-    for (const channel of channels) {
-      if (channel.name && (
-        channel.name.length > 50 || 
-        channel.name.includes('base64') ||
-        channel.name.startsWith('data:')
-      )) {
-        // Extract a reasonable name from the corrupted one
-        let newName = channel.name.substring(0, 30).replace(/[^a-zA-Z0-9\s]/g, '').trim();
-        if (!newName || newName.length < 2) {
-          newName = `Canale_${channel.id.substring(0, 6)}`;
-        }
-        
-        db.prepare('UPDATE channels SET name = ? WHERE id = ?')
-          .run(newName, channel.id);
-        fixed++;
-      }
-    }
-
-    res.json({ success: true, fixed, message: `Corretti ${fixed} canali` });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Errore durante la correzione' });
-  }
+  const row = await db.get('SELECT COUNT(*) as count FROM channel_members WHERE channel_id = $1', [req.params.id]);
+  res.json({ joined: false, memberCount: parseInt(row.count) });
 });
 
 module.exports = router;

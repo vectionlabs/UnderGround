@@ -114,18 +114,18 @@ io.on('connection', (socket) => {
   });
 
   // Send direct message
-  socket.on('dm:send', (data) => {
+  socket.on('dm:send', async (data) => {
     const { receiverId, text } = data;
     if (!socket.userId || !receiverId || !text?.trim()) return;
 
-    const sender = db.prepare('SELECT id, username, displayName, avatar FROM users WHERE id = ?').get(socket.userId);
+    const sender = await db.get('SELECT id, username, display_name, avatar FROM users WHERE id = $1', [socket.userId]);
     if (!sender) return;
 
     const id = generateId();
-    db.prepare(`
-      INSERT INTO direct_messages (id, senderId, receiverId, text)
-      VALUES (?, ?, ?, ?)
-    `).run(id, socket.userId, receiverId, text.trim());
+    await db.run(`
+      INSERT INTO direct_messages (id, sender_id, receiver_id, text)
+      VALUES ($1, $2, $3, $4)
+    `, [id, socket.userId, receiverId, text.trim()]);
 
     const message = {
       id,
@@ -145,22 +145,22 @@ io.on('connection', (socket) => {
   });
 
   // Send group message
-  socket.on('group:message', (data) => {
+  socket.on('group:message', async (data) => {
     const { groupId, text } = data;
     if (!socket.userId || !groupId || !text?.trim()) return;
 
-    const sender = db.prepare('SELECT id, username, displayName, avatar FROM users WHERE id = ?').get(socket.userId);
+    const sender = await db.get('SELECT id, username, display_name, avatar FROM users WHERE id = $1', [socket.userId]);
     if (!sender) return;
 
     // Check if user is member
-    const isMember = db.prepare('SELECT 1 FROM group_members WHERE groupId = ? AND oderId = ?').get(groupId, socket.userId);
+    const isMember = await db.get('SELECT 1 FROM group_members WHERE group_id = $1 AND user_id = $2', [groupId, socket.userId]);
     if (!isMember) return;
 
     const id = generateId();
-    db.prepare(`
-      INSERT INTO group_messages (id, groupId, senderId, text)
-      VALUES (?, ?, ?, ?)
-    `).run(id, groupId, socket.userId, text.trim());
+    await db.run(`
+      INSERT INTO group_messages (id, group_id, sender_id, text)
+      VALUES ($1, $2, $3, $4)
+    `, [id, groupId, socket.userId, text.trim()]);
 
     const message = {
       id,

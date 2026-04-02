@@ -4,20 +4,20 @@ const { db, generateId } = require('../db');
 const { moderateText } = require('../moderation');
 
 // Get all reels
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const userId = req.headers['x-user-id'];
 
-  const reels = db.prepare(`
-    SELECT r.*, u.displayName as authorName, u.avatar as authorAvatar,
-           (SELECT COUNT(*) FROM reel_likes WHERE reelId = r.id) as likeCount
+  const reels = await db.all(`
+    SELECT r.*, u.display_name as author_name, u.avatar as author_avatar,
+           (SELECT COUNT(*) FROM reel_likes WHERE reel_id = r.id) as like_count
     FROM reels r
-    JOIN users u ON r.authorId = u.id
-    ORDER BY r.createdAt DESC
+    JOIN users u ON r.author_id = u.id
+    ORDER BY r.created_at DESC
     LIMIT 50
-  `).all();
+  `);
 
   if (userId) {
-    const liked = db.prepare('SELECT reelId FROM reel_likes WHERE userId = ?').all(userId);
+    const liked = await db.all('SELECT reel_id FROM reel_likes WHERE user_id = $1', [userId]);
     const likedSet = new Set(liked.map(l => l.reelId));
     reels.forEach(r => r.liked = likedSet.has(r.id));
   }
@@ -26,7 +26,7 @@ router.get('/', (req, res) => {
 });
 
 // Create reel
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const userId = req.headers['x-user-id'];
   if (!userId) {
     return res.status(401).json({ error: 'Non autenticato' });
@@ -44,19 +44,19 @@ router.post('/', (req, res) => {
 
   const id = generateId();
   const type = mediaType || (videoBase64 ? 'video' : 'image');
-  const short = isShort !== undefined ? (isShort ? 1 : 0) : (duration && duration <= 60 ? 1 : 0);
+  const short = isShort !== undefined ? !!isShort : (duration && duration <= 60);
 
-  db.prepare(`
-    INSERT INTO reels (id, authorId, title, imageBase64, videoBase64, mediaType, duration, isShort)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, userId, modResult.cleanText, imageBase64 || null, videoBase64 || null, type, duration || 0, short);
+  await db.run(`
+    INSERT INTO reels (id, author_id, title, image_base64, video_base64, media_type, duration, is_short)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+  `, [id, userId, modResult.cleanText, imageBase64 || null, videoBase64 || null, type, duration || 0, short]);
 
-  const reel = db.prepare(`
-    SELECT r.*, u.displayName as authorName, u.avatar as authorAvatar
+  const reel = await db.get(`
+    SELECT r.*, u.display_name as author_name, u.avatar as author_avatar
     FROM reels r
-    JOIN users u ON r.authorId = u.id
-    WHERE r.id = ?
-  `).get(id);
+    JOIN users u ON r.author_id = u.id
+    WHERE r.id = $1
+  `, [id]);
 
   reel.likeCount = 0;
   reel.liked = false;
@@ -65,47 +65,47 @@ router.post('/', (req, res) => {
 });
 
 // Like/unlike reel
-router.post('/:id/like', (req, res) => {
+router.post('/:id/like', async (req, res) => {
   const userId = req.headers['x-user-id'];
   if (!userId) {
     return res.status(401).json({ error: 'Non autenticato' });
   }
 
   const reelId = req.params.id;
-  const existing = db.prepare('SELECT * FROM reel_likes WHERE reelId = ? AND userId = ?').get(reelId, userId);
+  const existing = await db.get('SELECT * FROM reel_likes WHERE reel_id = $1 AND user_id = $2', [reelId, userId]);
 
   if (existing) {
-    db.prepare('DELETE FROM reel_likes WHERE reelId = ? AND userId = ?').run(reelId, userId);
+    await db.run('DELETE FROM reel_likes WHERE reel_id = $1 AND user_id = $2', [reelId, userId]);
   } else {
-    db.prepare('INSERT INTO reel_likes (reelId, userId) VALUES (?, ?)').run(reelId, userId);
+    await db.run('INSERT INTO reel_likes (reel_id, user_id) VALUES ($1, $2)', [reelId, userId]);
   }
 
-  const likeCount = db.prepare('SELECT COUNT(*) as count FROM reel_likes WHERE reelId = ?').get(reelId).count;
+  const row = await db.get('SELECT COUNT(*) as count FROM reel_likes WHERE reel_id = $1', [reelId]);
+  const likeCount = parseInt(row.count);
   
-  // Update reel likes count
-  db.prepare('UPDATE reels SET likes = ? WHERE id = ?').run(likeCount, reelId);
+  await db.run('UPDATE reels SET likes = $1 WHERE id = $2', [likeCount, reelId]);
 
   res.json({ liked: !existing, likeCount });
 });
 
 // Get single reel
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   const userId = req.headers['x-user-id'];
 
-  const reel = db.prepare(`
-    SELECT r.*, u.displayName as authorName, u.avatar as authorAvatar,
-           (SELECT COUNT(*) FROM reel_likes WHERE reelId = r.id) as likeCount
+  const reel = await db.get(`
+    SELECT r.*, u.display_name as author_name, u.avatar as author_avatar,
+           (SELECT COUNT(*) FROM reel_likes WHERE reel_id = r.id) as like_count
     FROM reels r
-    JOIN users u ON r.authorId = u.id
-    WHERE r.id = ?
-  `).get(req.params.id);
+    JOIN users u ON r.author_id = u.id
+    WHERE r.id = $1
+  `, [req.params.id]);
 
   if (!reel) {
     return res.status(404).json({ error: 'Reel non trovato' });
   }
 
   if (userId) {
-    const liked = db.prepare('SELECT * FROM reel_likes WHERE reelId = ? AND userId = ?').get(req.params.id, userId);
+    const liked = await db.get('SELECT * FROM reel_likes WHERE reel_id = $1 AND user_id = $2', [req.params.id, userId]);
     reel.liked = !!liked;
   }
 
@@ -113,13 +113,13 @@ router.get('/:id', (req, res) => {
 });
 
 // Delete reel
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   const userId = req.headers['x-user-id'];
   if (!userId) {
     return res.status(401).json({ error: 'Non autenticato' });
   }
 
-  const reel = db.prepare('SELECT * FROM reels WHERE id = ?').get(req.params.id);
+  const reel = await db.get('SELECT * FROM reels WHERE id = $1', [req.params.id]);
   if (!reel) {
     return res.status(404).json({ error: 'Reel non trovato' });
   }
@@ -128,7 +128,7 @@ router.delete('/:id', (req, res) => {
     return res.status(403).json({ error: 'Non autorizzato' });
   }
 
-  db.prepare('DELETE FROM reels WHERE id = ?').run(req.params.id);
+  await db.run('DELETE FROM reels WHERE id = $1', [req.params.id]);
   res.json({ success: true });
 });
 
