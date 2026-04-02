@@ -124,9 +124,13 @@ export default function Feed({
             <div className="flex items-center justify-between p-4 pb-2">
               <div className="flex items-center gap-3">
                 {(post as any).publishAsName ? (
+                  (post as any).publishAsIcon && (post as any).publishAsIcon.startsWith('data:') ? (
+                    <img src={(post as any).publishAsIcon} alt={(post as any).publishAsName} className="h-10 w-10 rounded-full object-cover" />
+                  ) : (
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-400 text-xl">
                     {(post as any).publishAsIcon || '📢'}
                   </div>
+                  )
                 ) : post.authorAvatar ? (
                   <img
                     src={post.authorAvatar}
