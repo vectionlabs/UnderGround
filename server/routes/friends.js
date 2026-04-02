@@ -13,19 +13,19 @@ router.get('/', async (req, res) => {
     const query = `
       SELECT 
         f.id,
-        f.friend_id as "friendId",
-        f.created_at as "createdAt",
-        u.username as "friendUsername",
-        u.display_name as "friendDisplayName",
-        u.avatar as "friendAvatar"
+        f.friend_id as friendId,
+        f.created_at as createdAt,
+        u.username as friendUsername,
+        u.display_name as friendDisplayName,
+        u.avatar as friendAvatar
       FROM friends f
       JOIN users u ON (f.friend_id = u.id)
       WHERE f.user_id = $1
       ORDER BY f.created_at DESC
     `;
     
-    const result = await db.query(query, [userId]);
-    res.json(result.rows);
+    const result = await db.all(query, [userId]);
+    res.json(result);
   } catch (error) {
     console.error('Error fetching friends:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -43,19 +43,19 @@ router.get('/requests', async (req, res) => {
     const query = `
       SELECT 
         fr.id,
-        fr.requester_id as "requesterId",
-        fr.created_at as "createdAt",
-        u.username as "requesterUsername",
-        u.display_name as "requesterDisplayName",
-        u.avatar as "requesterAvatar"
+        fr.requester_id as requesterId,
+        fr.created_at as createdAt,
+        u.username as requesterUsername,
+        u.display_name as requesterDisplayName,
+        u.avatar as requesterAvatar
       FROM friend_requests fr
       JOIN users u ON (fr.requester_id = u.id)
       WHERE fr.receiver_id = $1 AND fr.status = 'pending'
       ORDER BY fr.created_at DESC
     `;
     
-    const result = await db.query(query, [userId]);
-    res.json(result.rows);
+    const result = await db.all(query, [userId]);
+    res.json(result);
   } catch (error) {
     console.error('Error fetching friend requests:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -77,22 +77,22 @@ router.post('/request', async (req, res) => {
     }
 
     // Check if already friends
-    const friendsCheck = await db.query(
+    const friendsCheck = await db.get(
       'SELECT 1 FROM friends WHERE user_id = $1 AND friend_id = $2',
       [userId, targetUserId]
     );
     
-    if (friendsCheck.rows.length > 0) {
+    if (friendsCheck) {
       return res.status(400).json({ error: 'Already friends' });
     }
 
     // Check if request already exists
-    const requestCheck = await db.query(
+    const requestCheck = await db.get(
       'SELECT 1 FROM friend_requests WHERE requester_id = $1 AND receiver_id = $2 AND status = $3',
       [userId, targetUserId, 'pending']
     );
     
-    if (requestCheck.rows.length > 0) {
+    if (requestCheck) {
       return res.status(400).json({ error: 'Friend request already sent' });
     }
 
@@ -103,8 +103,8 @@ router.post('/request', async (req, res) => {
       RETURNING id
     `;
     
-    const result = await db.query(query, [userId, targetUserId]);
-    res.json({ success: true, requestId: result.rows[0].id });
+    const result = await db.get(query, [userId, targetUserId]);
+    res.json({ success: true, requestId: result.id });
   } catch (error) {
     console.error('Error sending friend request:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -129,31 +129,31 @@ router.post('/accept/:requestId', async (req, res) => {
       RETURNING requester_id
     `;
     
-    const requestResult = await db.query(requestQuery, [requestId, userId]);
+    const requestResult = await db.get(requestQuery, [requestId, userId]);
     
-    if (requestResult.rows.length === 0) {
+    if (!requestResult) {
       return res.status(404).json({ error: 'Friend request not found' });
     }
 
-    const requesterId = requestResult.rows[0].requester_id;
+    const requesterId = requestResult.requesterId;
 
     // Create friendship (both directions)
-    await db.query('BEGIN');
+    await db.run('BEGIN');
     
     try {
-      await db.query(
+      await db.run(
         'INSERT INTO friends (user_id, friend_id) VALUES ($1, $2)',
         [userId, requesterId]
       );
       
-      await db.query(
+      await db.run(
         'INSERT INTO friends (user_id, friend_id) VALUES ($1, $2)',
         [requesterId, userId]
       );
       
-      await db.query('COMMIT');
+      await db.run('COMMIT');
     } catch (error) {
-      await db.query('ROLLBACK');
+      await db.run('ROLLBACK');
       throw error;
     }
 
@@ -180,11 +180,9 @@ router.post('/decline/:requestId', async (req, res) => {
       WHERE id = $1 AND receiver_id = $2 AND status = 'pending'
     `;
     
-    const result = await db.query(query, [requestId, userId]);
+    const result = await db.run(query, [requestId, userId]);
     
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Friend request not found' });
-    }
+    // No need to check rows affected for decline
 
     res.json({ success: true });
   } catch (error) {
@@ -210,11 +208,7 @@ router.delete('/:friendId', async (req, res) => {
          OR (user_id = $2 AND friend_id = $1)
     `;
     
-    const result = await db.query(query, [userId, friendId]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Friendship not found' });
-    }
+    await db.run(query, [userId, friendId]);
 
     res.json({ success: true });
   } catch (error) {
@@ -241,7 +235,7 @@ router.get('/search', async (req, res) => {
       SELECT 
         id,
         username,
-        display_name as "displayName",
+        display_name as displayName,
         avatar,
         bio
       FROM users 
@@ -257,8 +251,8 @@ router.get('/search', async (req, res) => {
       LIMIT 20
     `;
     
-    const result = await db.query(searchQuery, [`%${q}%`, userId]);
-    res.json(result.rows);
+    const result = await db.all(searchQuery, [`%${q}%`, userId]);
+    res.json(result);
   } catch (error) {
     console.error('Error searching users:', error);
     res.status(500).json({ error: 'Internal server error' });
