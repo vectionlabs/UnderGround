@@ -66,8 +66,14 @@ app.get('/api/health', (req, res) => {
 
 // Serve frontend in production
 if (isProduction) {
+  // On Render, dist is in the project root
   const distPath = path.join(__dirname, '..', 'dist');
-  app.use(express.static(distPath));
+  // Fallback to current directory if dist doesn't exist in parent
+  const fallbackPath = path.join(__dirname, 'dist');
+  const staticPath = require('fs').existsSync(distPath) ? distPath : fallbackPath;
+  
+  console.log('📁 Serving frontend from:', staticPath);
+  app.use(express.static(staticPath));
   
   // Catch-all for SPA routing (must be after API routes)
   app.get('*', (req, res, next) => {
@@ -75,7 +81,7 @@ if (isProduction) {
     if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
       return next();
     }
-    res.sendFile(path.join(distPath, 'index.html'));
+    res.sendFile(path.join(staticPath, 'index.html'));
   });
 }
 
