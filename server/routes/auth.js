@@ -157,6 +157,36 @@ router.get('/users/:id', (req, res) => {
   res.json(user);
 });
 
+// Debug: check what data looks corrupted
+router.get('/debug-data', (req, res) => {
+  try {
+    const users = db.prepare(`
+      SELECT id, username, displayName, LENGTH(displayName) as dnLen, 
+             LENGTH(avatar) as avLen, SUBSTR(avatar, 1, 50) as avStart
+      FROM users
+    `).all();
+
+    const channels = db.prepare(`
+      SELECT id, name, LENGTH(name) as nameLen, icon, LENGTH(icon) as iconLen,
+             SUBSTR(icon, 1, 50) as iconStart
+      FROM channels
+    `).all();
+
+    const posts = db.prepare(`
+      SELECT id, authorId, publishAsChannelId, mediaType,
+             LENGTH(imageBase64) as imgLen,
+             SUBSTR(imageBase64, 1, 50) as imgStart
+      FROM posts
+      LIMIT 10
+    `).all();
+
+    res.json({ users, channels, posts });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Fix corrupted users (base64 in displayName)
 router.post('/fix-corrupted-users', (req, res) => {
   try {
