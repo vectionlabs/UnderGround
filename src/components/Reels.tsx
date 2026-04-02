@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HeartIcon, CloseIcon, PlayIcon, PlusIcon, ShortsIcon, VideoIcon } from './Icons';
+import { HeartIcon, CloseIcon, PlayIcon, PlusIcon, ShortsIcon, VideoIcon, UserPlusIcon } from './Icons';
 import MediaUploader from './MediaUploader';
 import type { Reel } from '../hooks/useApi';
 
@@ -17,11 +17,13 @@ type MediaFile = {
 type ReelsProps = {
   reels: Reel[];
   currentUserId: string;
+  friends: string[]; // Array of friend IDs
   onLike: (reelId: string) => void;
   onCreate: (title: string, media: MediaFile) => Promise<void>;
+  onSendFriendRequest: (userId: string) => void;
 };
 
-export default function Reels({ reels, currentUserId, onLike, onCreate }: ReelsProps) {
+export default function Reels({ reels, currentUserId, friends, onLike, onCreate, onSendFriendRequest }: ReelsProps) {
   const [selectedReel, setSelectedReel] = useState<Reel | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createTitle, setCreateTitle] = useState('');
@@ -206,9 +208,20 @@ export default function Reels({ reels, currentUserId, onLike, onCreate }: ReelsP
 
               <div className="p-4">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <p className="font-semibold">{selectedReel.title}</p>
-                    <p className="text-sm text-slate-400">@{selectedReel.authorName}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-slate-400">@{selectedReel.authorName}</p>
+                      {selectedReel.authorId !== currentUserId && !friends.includes(selectedReel.authorId) && (
+                        <button
+                          onClick={() => onSendFriendRequest(selectedReel.authorId)}
+                          className="rounded p-1 text-slate-400 transition hover:bg-pink-500/20 hover:text-pink-400"
+                          title="Aggiungi come amico"
+                        >
+                          <UserPlusIcon size={12} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => onLike(selectedReel.id)}

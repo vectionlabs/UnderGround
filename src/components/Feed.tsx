@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HeartIcon, CommentIcon, SendIcon, TrashIcon, BookmarkIcon, ShareIcon, SmileIcon } from './Icons';
+import { HeartIcon, CommentIcon, SendIcon, TrashIcon, BookmarkIcon, ShareIcon, SmileIcon, UserPlusIcon } from './Icons';
 import type { Post, Comment, Channel } from '../hooks/useApi';
 
 const REACTIONS = ['❤️', '😂', '😮', '😢', '😡', '👏', '🔥', '💯'];
@@ -19,6 +19,7 @@ type FeedProps = {
   channels: Channel[];
   currentUserId: string;
   bookmarkedPosts: string[];
+  friends: string[]; // Array of friend IDs
   onLike: (postId: string) => void;
   onComment: (postId: string, text: string) => void;
   onDelete: (postId: string) => void;
@@ -26,6 +27,7 @@ type FeedProps = {
   onBookmark: (postId: string) => void;
   onReact: (postId: string, reaction: string) => void;
   onShare: (postId: string) => void;
+  onSendFriendRequest: (userId: string) => void;
 };
 
 export default function Feed({
@@ -33,6 +35,7 @@ export default function Feed({
   channels,
   currentUserId,
   bookmarkedPosts,
+  friends,
   onLike,
   onComment,
   onDelete,
@@ -40,6 +43,7 @@ export default function Feed({
   onBookmark,
   onReact,
   onShare,
+  onSendFriendRequest,
 }: FeedProps) {
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [expandedComments, setExpandedComments] = useState<Record<string, Comment[]>>({});
@@ -157,14 +161,25 @@ export default function Feed({
                   </p>
                 </div>
               </div>
-              {post.authorId === currentUserId && (
-                <button
-                  onClick={() => onDelete(post.id)}
-                  className="rounded-lg p-2 text-slate-400 transition hover:bg-red-500/20 hover:text-red-400"
-                >
-                  <TrashIcon size={18} />
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {post.authorId !== currentUserId && !friends.includes(post.authorId) && (
+                  <button
+                    onClick={() => onSendFriendRequest(post.authorId)}
+                    className="rounded-lg p-2 text-slate-400 transition hover:bg-pink-500/20 hover:text-pink-400"
+                    title="Aggiungi come amico"
+                  >
+                    <UserPlusIcon size={16} />
+                  </button>
+                )}
+                {post.authorId === currentUserId && (
+                  <button
+                    onClick={() => onDelete(post.id)}
+                    className="rounded-lg p-2 text-slate-400 transition hover:bg-red-500/20 hover:text-red-400"
+                  >
+                    <TrashIcon size={18} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Content */}
@@ -331,13 +346,26 @@ export default function Feed({
                           </div>
                         )}
                         <div className="flex-1">
-                          <p className="text-sm">
-                            <span className="font-semibold">{comment.authorName}</span>{' '}
-                            <span className="text-slate-300">{comment.text}</span>
-                          </p>
-                          <p className="mt-0.5 text-xs text-slate-500">
-                            {formatTime(comment.createdAt)}
-                          </p>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="text-sm">
+                                <span className="font-semibold">{comment.authorName}</span>{' '}
+                                <span className="text-slate-300">{comment.text}</span>
+                              </p>
+                              <p className="mt-0.5 text-xs text-slate-500">
+                                {formatTime(comment.createdAt)}
+                              </p>
+                            </div>
+                            {comment.authorId !== currentUserId && !friends.includes(comment.authorId) && (
+                              <button
+                                onClick={() => onSendFriendRequest(comment.authorId)}
+                                className="ml-2 rounded p-1 text-slate-400 transition hover:bg-pink-500/20 hover:text-pink-400"
+                                title="Aggiungi come amico"
+                              >
+                                <UserPlusIcon size={12} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}

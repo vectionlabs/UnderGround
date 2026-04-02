@@ -457,6 +457,16 @@ export default function App() {
     setChannelList(newChannels);
   };
 
+  // Friend handlers
+  const handleSendFriendRequest = async (userId: string) => {
+    try {
+      await friends.send(userId);
+      alert('Richiesta di amicizia inviata!');
+    } catch (error: any) {
+      alert(error.message || 'Errore nell\'invio della richiesta di amicizia');
+    }
+  };
+
   // Group handlers
   const handleCreateGroup = async (name: string, description: string, avatar: string | null, memberIds: string[]) => {
     const newGroup = await groups.create(name, description, avatar);
@@ -909,6 +919,7 @@ export default function App() {
                 channels={channelList}
                 currentUserId={currentUser?.id || ""}
                 bookmarkedPosts={bookmarkedPosts}
+                friends={friendList.map(f => f.id)}
                 onLike={handleLikePost}
                 onComment={handleCommentPost}
                 onDelete={handleDeletePost}
@@ -916,6 +927,7 @@ export default function App() {
                 onBookmark={handleBookmark}
                 onReact={handleReact}
                 onShare={handleShare}
+                onSendFriendRequest={handleSendFriendRequest}
               />
             </motion.div>
           )}
@@ -930,8 +942,10 @@ export default function App() {
               <ReelsComponent
                 reels={reelList}
                 currentUserId={currentUser?.id || ""}
+                friends={friendList.map(f => f.id)}
                 onLike={handleLikeReel}
                 onCreate={handleCreateReel}
+                onSendFriendRequest={handleSendFriendRequest}
               />
             </motion.div>
           )}

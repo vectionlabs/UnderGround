@@ -444,7 +444,7 @@ export default function Groups({
                     </div>
                   ) : (
                     <p className="rounded-lg border border-white/10 bg-slate-800/50 p-3 text-center text-sm text-slate-500">
-                      Nessun amico disponibile. Aggiungi amici dal profilo!
+                      Nessun amico disponibile. Aggiungi amici dai post o dai reels!
                     </p>
                   )}
                 </div>
