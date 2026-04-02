@@ -83,15 +83,27 @@ router.get('/search', async (req, res) => {
     const userId = req.headers['x-user-id'];
     const query = req.query.q;
     
+    console.log('🔍 Search request:', { userId, query, headers: req.headers });
+    
     if (!userId) {
+      console.log('❌ No userId in headers');
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
     if (!query || query.length < 2) {
+      console.log('❌ Query too short:', query);
       return res.json([]);
     }
 
     const searchPattern = `%${query}%`;
+    
+    // First, let's check if users table exists and has data
+    try {
+      const countResult = await db.all('SELECT COUNT(*) as count FROM users WHERE banned = false');
+      console.log('👥 Total users in DB:', countResult[0]?.count);
+    } catch (countError) {
+      console.error('❌ Error counting users:', countError);
+    }
     
     // Simple search without friendships dependency first
     const userQuery = `
@@ -120,14 +132,17 @@ router.get('/search', async (req, res) => {
       LIMIT 20
     `;
     
-    console.log('🔍 Searching users:', { userId, query, searchPattern });
+    console.log('🔍 Executing search:', { userId, query, searchPattern });
+    console.log('🔍 SQL Query:', userQuery);
     
     const result = await db.all(userQuery, [userId, searchPattern, query]);
     console.log('🔍 Search results:', result.length, 'users found');
+    console.log('🔍 Results data:', result);
     
     res.json(result);
   } catch (error) {
-    console.error('Error searching users:', error);
+    console.error('❌ Error searching users:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -140,6 +155,8 @@ router.get('/debug/users', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    console.log('🐛 Debug: Getting all users...');
+    
     const result = await db.all(`
       SELECT id, username, display_name, banned 
       FROM users 
@@ -151,8 +168,41 @@ router.get('/debug/users', async (req, res) => {
     console.log('🐛 Debug: All users:', result);
     res.json(result);
   } catch (error) {
-    console.error('Debug error:', error);
+    console.error('❌ Debug error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Test database connection
+router.get('/test/db', async (req, res) => {
+  try {
+    console.log('🧪 Testing database connection...');
+    
+    // Test basic connection
+    const timeResult = await db.all('SELECT NOW() as current_time');
+    console.log('🧪 DB time:', timeResult[0]?.currentTime);
+    
+    // Test users table
+    const userCount = await db.all('SELECT COUNT(*) as count FROM users');
+    console.log('🧪 Total users:', userCount[0]?.count);
+    
+    // Test sample users
+    const sampleUsers = await db.all('SELECT id, username, display_name FROM users LIMIT 5');
+    console.log('🧪 Sample users:', sampleUsers);
+    
+    res.json({
+      success: true,
+      currentTime: timeResult[0]?.currentTime,
+      totalUsers: userCount[0]?.count,
+      sampleUsers: sampleUsers
+    });
+  } catch (error) {
+    console.error('❌ DB test error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      stack: error.stack 
+    });
   }
 });
 

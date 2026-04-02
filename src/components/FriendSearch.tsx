@@ -25,15 +25,18 @@ export default function FriendSearch({ currentUserId, onSendFriendRequest }: Fri
     const searchUsers = async () => {
       setIsSearching(true);
       try {
+        console.log('🔍 Frontend searching for:', searchQuery);
         const results = await friends.searchUsers(searchQuery);
+        console.log('🔍 Frontend received results:', results);
         // Filter out current user and existing friends
         const filtered = results.filter(user => 
           user.id !== currentUserId && 
-          !user.isFriend
+          !(user as any).isFriend
         );
+        console.log('🔍 Frontend filtered results:', filtered);
         setSearchResults(filtered);
       } catch (error) {
-        console.error('Error searching users:', error);
+        console.error('❌ Frontend error searching users:', error);
         setSearchResults([]);
       } finally {
         setIsSearching(false);
