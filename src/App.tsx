@@ -260,23 +260,23 @@ export default function App() {
     }
   }, [currentUser, loadAllData]);
 
-  // Lazy load tab data when tab becomes active
-  useEffect(() => {
-    if (!activeTabData[activeTab]) {
-      console.log(`🔄 Loading data for tab: ${activeTab}`);
-      setActiveTabData(prev => ({ ...prev, [activeTab]: true }));
-      
-      // Load specific data for this tab
-      if (activeTab === 'messaggi' && !conversationList.length) {
-        messages.conversations().then(setConversationList).catch(console.error);
-        messages.unreadCount().then(setUnreadMessages).catch(console.error);
-      } else if (activeTab === 'reels' && !reelList.length) {
-        reels.list().then(setReelList).catch(console.error);
-      } else if (activeTab === 'gruppi' && !groupList.length) {
-        groups.list().then(setGroupList).catch(console.error);
-      }
-    }
-  }, [activeTab]);
+  // Lazy load tab data when tab becomes active (DISABLED FOR DEBUGGING)
+  // useEffect(() => {
+  //   if (!activeTabData[activeTab]) {
+  //     console.log(`🔄 Loading data for tab: ${activeTab}`);
+  //     setActiveTabData(prev => ({ ...prev, [activeTab]: true }));
+  //     
+  //     // Load specific data for this tab
+  //     if (activeTab === 'messaggi' && !conversationList.length) {
+  //       messages.conversations().then(setConversationList).catch(console.error);
+  //       messages.unreadCount().then(setUnreadMessages).catch(console.error);
+  //     } else if (activeTab === 'reels' && !reelList.length) {
+  //       reels.list().then(setReelList).catch(console.error);
+  //     } else if (activeTab === 'gruppi' && !groupList.length) {
+  //       groups.list().then(setGroupList).catch(console.error);
+  //     }
+  //   }
+  // }, [activeTab]);
 
   // Auth handlers
   const handleLogin = async (e: FormEvent) => {
@@ -1025,23 +1025,8 @@ export default function App() {
             >
               <div className="p-6">
                 <h2 className="text-2xl font-bold mb-4">Amici</h2>
-                <div className="space-y-4">
-                  <div className="rounded-lg border border-white/10 bg-slate-800/50 p-4">
-                    <p className="text-slate-400">Amici attuali: {friendList.length}</p>
-                    <p className="mt-2 text-sm text-slate-500">
-                      {friendList.length > 0 
-                        ? `Hai ${friendList.length} amicizie`
-                        : 'Nessun amico ancora'
-                      }
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-pink-500/20 bg-pink-500/5 p-4">
-                    <p className="text-pink-400 font-semibold">💡 Suggerimento</p>
-                    <p className="mt-2 text-sm text-slate-300">
-                      Aggiungi amici dai post e reels con il pulsante +
-                    </p>
-                  </div>
-                </div>
+                <p className="text-slate-400">Funzionalità amici in arrivo!</p>
+                <p className="mt-2 text-sm text-slate-500">Usa i pulsanti + nei post per aggiungere amici.</p>
               </div>
             </motion.div>
           )}
