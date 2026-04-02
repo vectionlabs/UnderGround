@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HeartIcon, CloseIcon, PlayIcon, PlusIcon, ShortsIcon, VideoIcon } from './Icons';
 import MediaUploader from './MediaUploader';
@@ -29,6 +29,14 @@ export default function Reels({ reels, currentUserId, onLike, onCreate }: ReelsP
   const [creating, setCreating] = useState(false);
   const [activeTab, setActiveTab] = useState<'shorts' | 'videos'>('shorts');
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Keep selectedReel in sync with reels prop (e.g. after like)
+  useEffect(() => {
+    if (selectedReel) {
+      const updated = reels.find(r => r.id === selectedReel.id);
+      if (updated) setSelectedReel(updated);
+    }
+  }, [reels]);
 
   const shorts = reels.filter(r => r.isShort || (r.duration && r.duration <= 60));
   const videos = reels.filter(r => !r.isShort && r.duration && r.duration > 60);

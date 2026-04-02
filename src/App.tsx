@@ -402,8 +402,18 @@ export default function App() {
 
   // Reel handlers
   const handleLikeReel = async (reelId: string) => {
+    // Optimistic update first
+    setReelList((prev) =>
+      prev.map((r) =>
+        r.id === reelId
+          ? { ...r, liked: !r.liked, likeCount: r.liked ? r.likeCount - 1 : r.likeCount + 1 }
+          : r
+      )
+    );
     try {
       await reels.like(reelId);
+    } catch (e) {
+      // Rollback on error
       setReelList((prev) =>
         prev.map((r) =>
           r.id === reelId
@@ -411,7 +421,6 @@ export default function App() {
             : r
         )
       );
-    } catch (e) {
       console.error(e);
     }
   };

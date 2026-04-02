@@ -37,7 +37,7 @@ app.use(cors({
   origin: true,
   credentials: true
 }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '100mb' }));
 
 // Debug logging in production
 if (isProduction) {
