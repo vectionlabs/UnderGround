@@ -20,6 +20,20 @@ type CreatePostProps = {
   onPublish: (text: string, channelId: string, media: MediaFile | null, publishAs: string | null) => Promise<void>;
 };
 
+// Sanitize icon: if base64, use default emoji
+const safeIcon = (icon: string) => {
+  if (!icon || icon.length > 10 || icon.startsWith('data:') || icon.includes('base64')) return '📢';
+  return icon;
+};
+// Sanitize name: truncate if too long or contains base64
+const safeName = (name: string) => {
+  if (!name) return '?';
+  if (name.length > 50 || name.includes('base64') || name.startsWith('data:')) {
+    return name.substring(0, 20).replace(/[^a-zA-Z0-9\s._-]/g, '').trim() || '?';
+  }
+  return name;
+};
+
 export default function CreatePost({ channels, currentUser, onPublish }: CreatePostProps) {
   const [text, setText] = useState('');
   const [selectedChannel, setSelectedChannel] = useState(channels[0]?.id || '');
@@ -81,9 +95,9 @@ export default function CreatePost({ channels, currentUser, onPublish }: CreateP
             <option value="user">
               👤 Tu ({currentUser.displayName})
             </option>
-            {channels.map((channel) => (
+            {channels.filter(c => !c.name?.startsWith('data:')).map((channel) => (
               <option key={channel.id} value={channel.id}>
-                {channel.icon} {channel.name}
+                {safeIcon(channel.icon)} {safeName(channel.name)}
               </option>
             ))}
           </select>
@@ -97,9 +111,9 @@ export default function CreatePost({ channels, currentUser, onPublish }: CreateP
             onChange={(e) => setSelectedChannel(e.target.value)}
             className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm outline-none focus:border-pink-400"
           >
-            {channels.map((channel) => (
+            {channels.filter(c => !c.name?.startsWith('data:')).map((channel) => (
               <option key={channel.id} value={channel.id}>
-                {channel.icon} {channel.name}
+                {safeIcon(channel.icon)} {safeName(channel.name)}
               </option>
             ))}
           </select>
