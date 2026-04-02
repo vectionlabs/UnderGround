@@ -84,6 +84,7 @@ io.on('connection', (socket) => {
     if (!userData?.userId) return;
     
     onlineUsers.set(userData.userId, {
+      userId: userData.userId,
       oderId: userData.userId,
       username: userData.username,
       displayName: userData.displayName,
@@ -181,17 +182,17 @@ io.on('connection', (socket) => {
     if (!user) return;
     
     if (groupId) {
-      socket.to(`group:${groupId}`).emit('typing:update', { oderId: socket.userId, username: user.displayName, groupId, typing: true });
+      socket.to(`group:${groupId}`).emit('typing:update', { userId: socket.userId, oderId: socket.userId, username: user.displayName, groupId, typing: true });
     } else if (recipientId) {
-      io.to(`user:${recipientId}`).emit('typing:update', { oderId: socket.userId, username: user.displayName, typing: true });
+      io.to(`user:${recipientId}`).emit('typing:update', { userId: socket.userId, oderId: socket.userId, username: user.displayName, typing: true });
     }
   });
 
   socket.on('typing:stop', ({ recipientId, groupId }) => {
     if (groupId) {
-      socket.to(`group:${groupId}`).emit('typing:update', { oderId: socket.userId, groupId, typing: false });
+      socket.to(`group:${groupId}`).emit('typing:update', { userId: socket.userId, oderId: socket.userId, groupId, typing: false });
     } else if (recipientId) {
-      io.to(`user:${recipientId}`).emit('typing:update', { oderId: socket.userId, typing: false });
+      io.to(`user:${recipientId}`).emit('typing:update', { userId: socket.userId, oderId: socket.userId, typing: false });
     }
   });
 

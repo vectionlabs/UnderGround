@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import type { DirectMessage, GroupMessage, User } from './useApi';
 
 type OnlineUser = {
-  oderId: string;
+  userId: string;
   username: string;
   displayName: string;
   avatar: string | null;
@@ -11,7 +11,8 @@ type OnlineUser = {
 };
 
 type TypingState = {
-  oderId: string;
+  userId?: string;
+  oderId?: string;
   username: string;
   typing: boolean;
   groupId?: string;
@@ -32,7 +33,7 @@ type SocketHook = {
   onGroupMessage: (callback: (message: GroupMessage) => void) => void;
 };
 
-const SOCKET_URL = 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.PROD ? window.location.origin : 'http://localhost:3001';
 
 export function useSocket(user: User | null): SocketHook {
   const socketRef = useRef<Socket | null>(null);
@@ -62,7 +63,7 @@ export function useSocket(user: User | null): SocketHook {
     socket.on('connect', () => {
       setIsConnected(true);
       socket.emit('user:join', {
-        oderId: user.id,
+        userId: user.id,
         username: user.username,
         displayName: user.displayName,
         avatar: user.avatar,
@@ -92,7 +93,9 @@ export function useSocket(user: User | null): SocketHook {
     socket.on('typing:update', (data: TypingState) => {
       setTypingUsers((prev) => {
         const next = new Map(prev);
-        const key = data.groupId ? `group:${data.groupId}:${data.oderId}` : `dm:${data.oderId}`;
+        const typingUserId = data.userId || data.oderId;
+        if (!typingUserId) return next;
+        const key = data.groupId ? `group:${data.groupId}:${typingUserId}` : `dm:${typingUserId}`;
         if (data.typing) {
           next.set(key, data);
         } else {

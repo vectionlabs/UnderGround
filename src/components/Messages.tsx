@@ -4,14 +4,16 @@ import { MessageIcon, SendIcon, SearchIcon, CloseIcon, TypingIcon, OnlineIcon } 
 import type { Conversation, DirectMessage, User } from '../hooks/useApi';
 
 type OnlineUser = {
-  oderId: string;
+  userId?: string;
+  oderId?: string;
   username: string;
   displayName: string;
   avatar: string | null;
 };
 
 type TypingState = {
-  oderId: string;
+  userId?: string;
+  oderId?: string;
   username: string;
   typing: boolean;
 };
@@ -144,7 +146,7 @@ export default function Messages({
   };
 
   const isUserOnline = (userId: string) => {
-    return onlineUsers.some((u) => u.oderId === userId);
+    return onlineUsers.some((u) => (u.userId || u.oderId) === userId);
   };
 
   const getTypingIndicator = () => {
@@ -273,7 +275,7 @@ export default function Messages({
                     {conv.user.displayName.charAt(0)}
                   </div>
                 )}
-                {conv.user.status === 'online' && (
+                {isUserOnline(conv.user.id) && (
                   <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-900 bg-emerald-500" />
                 )}
               </div>
